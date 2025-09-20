@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">приложение</string>
+    <string name="dark_theme">Тёмная тема</string>
+    <string name="switch_language">Сменить язык</string>
+</resources>

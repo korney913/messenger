@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">messenger</string>
+    <string name="dark_theme">Dark Theme</string>
+    <string name="switch_language">Switch Language</string>
+</resources>
