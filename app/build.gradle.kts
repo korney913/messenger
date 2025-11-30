@@ -4,7 +4,8 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
-    id("org.jetbrains.kotlin.kapt")
+    kotlin("kapt")
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -45,9 +46,16 @@ android {
 dependencies {
 
     implementation("androidx.room:room-ktx:2.8.0")
+    implementation(libs.androidx.lifecycle.process)
     kapt("androidx.room:room-compiler:2.8.0")
-    //implementation("androidx.room:room-runtime:2.8.0")
-
+    implementation("androidx.lifecycle:lifecycle-livedata-ktx:2.9.4")
+    implementation(platform("com.google.firebase:firebase-bom:33.0.0"))
+    implementation("com.google.firebase:firebase-auth-ktx")
+    implementation("com.google.firebase:firebase-firestore-ktx")
+    implementation("com.google.firebase:firebase-messaging")
+    implementation("androidx.activity:activity-ktx:1.11.0")
+    implementation ("com.google.firebase:firebase-storage-ktx")
+    implementation("androidx.compose.material:material-icons-extended:1.7.8")
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)

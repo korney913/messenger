@@ -1,5 +1,21 @@
 <resources>
+    <!-- ScreenSettings -->
     <string name="app_name">приложение</string>
     <string name="dark_theme">Тёмная тема</string>
     <string name="switch_language">Сменить язык</string>
+
+    <!-- ScreenSign -->
+    <string name="hint_email">электронная почта</string>
+    <string name="hint_password">Пароль</string>
+    <string name="btn_signin">Войти</string>
+    <string name="btn_signup">Новый пользователь? Зарегистрироваться</string>
+    <string name="btn_signup2">Зарегистрироваться</string>
+    <string name="hint_name">Имя</string>
+    <string name="hint_location">Место жительства</string>
+
+    <!-- ScreenSettings -->
+
+
+    <!-- ScreenSettings -->
+
 </resources>

@@ -1,111 +1,276 @@
 package com.example.messenger
 
-import android.content.Context
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.annotation.StringRes
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.sp
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.example.messenger.Screens.ScreenMessenger
+import androidx.navigation.navArgument
+import com.example.messenger.Screens.ScreensMessenger.ScreenChat
+import com.example.messenger.Screens.ScrreensFriends.ScreenFriends
+import com.example.messenger.Screens.SignIn
+import com.example.messenger.Screens.ScreensMessenger.ScreenMessenger
 import com.example.messenger.Screens.ScreenProfile
 import com.example.messenger.Screens.Settings
 import com.example.messenger.Screens.Settings.ScreenSettings
+import com.example.messenger.Screens.SignUp
 import com.example.messenger.ui.theme.MessengerTheme
-import java.util.Locale
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
+import kotlin.String
+import androidx.compose.material.icons.filled.Chat
+import androidx.compose.material.icons.filled.Group
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.Icon
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import androidx.navigation.compose.navigation
+import com.example.messenger.Screens.ScreensMessenger.ScreenAddChat
+import com.example.messenger.Screens.ScreensMessenger.ScreenAddGroup
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        ProcessLifecycleOwner.get().lifecycle.addObserver(
+            LifecycleEventObserver { _, event ->
+                when (event) {
+                    Lifecycle.Event.ON_START -> setUserOnline(true)
+                    Lifecycle.Event.ON_STOP -> setUserOnline(false)
+                    else -> {}
+                }
+            }
+        )
         enableEdgeToEdge()
         setContent {
             MessengerTheme(darkTheme= Settings.darkTheme.value) {
-                //Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                 Navigation()
             }
         }
     }
+    override fun onStop() {
+        super.onStop()
+        setUserOnline(false)
+    }
 }
 
 sealed class Screen(val route: String) {
-    object Screen1 : Screen("screen1")
-    object Screen2 : Screen("screen2")
-    object Screen3 : Screen("screen3")
+    object Messenger : Screen("Messenger")
+    object Profile : Screen("Profile")
+    object Friends : Screen("Friends")
+    object Settings : Screen("Settings")
+    object SignUp : Screen("SignUp")
+    object LogIn : Screen("LogIn")
+    object AddChat : Screen("AddChat")
+    object AddGroup : Screen("AddGroup")
+    object Chat : Screen("Chat/{chatId}") {
+        fun createRoute(chatId: String) = "Chat/$chatId"
+    }
 }
 @Composable
 fun botButton(navController: NavController) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
-    NavigationBar(containerColor = MaterialTheme.colorScheme.primary) {
+    val navigationBars = WindowInsets.navigationBars.asPaddingValues() // отступы под кнопки/жесты
+    val bottomPadding: Dp = with(LocalDensity.current) { navigationBars.calculateBottomPadding() }
+    NavigationBar(containerColor = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.height(50.dp + bottomPadding)) {
         NavigationBarItem(
-            icon = {  },
-            label = { Text(Screen.Screen1.route, fontSize = 24.sp) },
-            selected = currentRoute == Screen.Screen1.route,
-            onClick = {
-                navController.navigate(Screen.Screen1.route)
-            }
+            modifier = Modifier.padding(start = 15.dp),
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.Chat,
+                    contentDescription = "Chat",
+                    modifier = Modifier.size(30.dp)
+                )
+            },
+            selected = currentRoute == Screen.Messenger.route,
+            onClick = { navController.navigate(Screen.Messenger.route) }
         )
         NavigationBarItem(
-            icon = {  },
-            label = { Text(Screen.Screen2.route, fontSize = 24.sp) },
-            selected = currentRoute == Screen.Screen2.route,
-            onClick = {
-                navController.navigate(Screen.Screen2.route)
-            }
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.Person,
+                    contentDescription = "Profile",
+                    modifier = Modifier.size(30.dp)
+                )
+            },
+            selected = currentRoute == Screen.Profile.route,
+            onClick = { navController.navigate(Screen.Profile.route) }
         )
         NavigationBarItem(
-            icon = {  },
-            label = { Text(Screen.Screen3.route, fontSize = 24.sp) },
-            selected = currentRoute == Screen.Screen3.route,
-            onClick = {
-                navController.navigate(Screen.Screen3.route)
-            }
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.Group,
+                    contentDescription = "Friends",
+                    modifier = Modifier.size(30.dp)
+                )
+            },
+            selected = currentRoute == Screen.Friends.route,
+            onClick = { navController.navigate(Screen.Friends.route) }
+        )
+        NavigationBarItem(
+            modifier = Modifier.padding(end = 15.dp),
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.Settings,
+                    contentDescription = "Settings",
+                    modifier = Modifier.size(30.dp)
+                )
+            },
+            selected = currentRoute == Screen.Settings.route,
+            onClick = { navController.navigate(Screen.Settings.route) }
         )
     }
 }
+
+
 @Composable
 fun Navigation() {
+    val mainViewModel: MainViewModel = viewModel(factory = MainViewModel.factory)
     val navController = rememberNavController()
-    val mainViewModel: MainViewModel = viewModel()
+    val user = FirebaseAuth.getInstance().currentUser
+    val userIsLoggedIn = user?.uid != null
+    val startDestination = if (userIsLoggedIn)
+        "chatGraph"
+    else
+        Screen.LogIn.route
+    RequestNotificationPermission()
     NavHost(
         navController = navController,
-        startDestination = Screen.Screen1.route
+        startDestination =  startDestination
     ) {
-        composable(Screen.Screen1.route) { ScreenMessenger(navController, mainViewModel) }
-        composable(Screen.Screen2.route) { ScreenProfile(navController, mainViewModel) }
-        composable(Screen.Screen3.route) { ScreenSettings(navController, mainViewModel) }
+        composable(Screen.Profile.route) { ScreenProfile(navController, mainViewModel) }
+        composable(Screen.Friends.route) { ScreenFriends(navController, mainViewModel) }
+        composable(Screen.Settings.route) { ScreenSettings(navController, mainViewModel) }
+        composable(Screen.LogIn.route) { SignIn(navController, mainViewModel) }
+        composable(Screen.SignUp.route) { SignUp(navController, mainViewModel) }
+        navigation(
+            startDestination = Screen.Messenger.route,
+            route = "chatGraph"
+        ) {
+            composable(Screen.Messenger.route) { backStackEntry ->
+                val chatGraphBackStackEntry = remember(backStackEntry) {
+                    navController.getBackStackEntry("chatGraph")
+                }
+                val chatViewModel: ChatViewModel = viewModel(
+                    viewModelStoreOwner  = chatGraphBackStackEntry,
+                    factory = ChatViewModel.factory
+                )
+                ScreenMessenger(navController, chatViewModel)
+            }
+            composable(Screen.AddChat.route) { backStackEntry ->
+                val chatGraphBackStackEntry = remember(backStackEntry) {
+                    navController.getBackStackEntry("chatGraph")
+                }
+                val chatViewModel: ChatViewModel = viewModel(
+                    viewModelStoreOwner  = chatGraphBackStackEntry,
+                    factory = ChatViewModel.factory
+                )
+                ScreenAddChat(navController, chatViewModel)
+            }
+            composable(Screen.AddGroup.route) { backStackEntry ->
+                val chatGraphBackStackEntry = remember(backStackEntry) {
+                    navController.getBackStackEntry("chatGraph")
+                }
+                val chatViewModel: ChatViewModel = viewModel(
+                    viewModelStoreOwner  = chatGraphBackStackEntry,
+                    factory = ChatViewModel.factory
+                )
+                ScreenAddGroup(navController, chatViewModel)
+            }
+            composable(
+                route = Screen.Chat.route,
+                arguments = listOf(navArgument("chatId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val chatGraphBackStackEntry = remember(backStackEntry) {
+                    navController.getBackStackEntry("chatGraph")
+                }
+                val chatViewModel: ChatViewModel = viewModel(
+                    viewModelStoreOwner  = chatGraphBackStackEntry,
+                    factory = ChatViewModel.factory
+                )
+                val chatId = backStackEntry.arguments?.getString("chatId")!!
+                ScreenChat(navController, chatViewModel, chatId)
+            }
+        }
     }
 }
 
-class MainViewModel : ViewModel() {
-    var currentLocale by mutableStateOf(Settings.language.value)
-        private set
 
-    fun toggleLanguage(context: Context) {
-        currentLocale = Settings.language.value
-        val config = context.resources.configuration
-        Locale.setDefault(Settings.language.value)
-        config.setLocale(Settings.language.value)
-        context.resources.updateConfiguration(config, context.resources.displayMetrics)
+
+private fun setUserOnline(isOnline: Boolean) {
+    val user = FirebaseAuth.getInstance().currentUser
+    user?.let {
+        FirebaseFirestore.getInstance().collection("Users")
+            .document(it.uid)
+            .update(
+                mapOf(
+                    "isOnline" to isOnline,
+                    "lastSeen" to System.currentTimeMillis()
+                )
+            )
+            .addOnFailureListener { e ->
+                Log.e("OnlineStatus", "Error updating status", e)
+            }
     }
 }
 
 
+/*@Composable
+fun Navigation() {
+    val chatViewModel: ChatViewModel = viewModel(factory = ChatViewModel.factory)
+    val mainViewModel: MainViewModel = viewModel(factory = MainViewModel.factory)
+    val navController = rememberNavController()
+    LaunchedEffect(Unit) {
+        val user = FirebaseAuth.getInstance().currentUser
+        val userIsLoggedIn = user?.uid != null
+        if (userIsLoggedIn) {
+            navController.navigate(Screen.Messenger.route)
+        }
+    }
+    RequestNotificationPermission()
+    NavHost(
+        navController = navController,
+        startDestination =  Screen.LogIn.route
+    ) {
+        composable(Screen.Messenger.route) { ScreenMessenger(navController, chatViewModel) }
+        composable(Screen.Profile.route) { ScreenProfile(navController, mainViewModel) }
+        composable(Screen.Friends.route) { ScreenFriends(navController, mainViewModel) }
+        composable(Screen.Settings.route) { ScreenSettings(navController, mainViewModel) }
+        composable(Screen.LogIn.route) { SignIn(navController, mainViewModel) }
+        composable(Screen.SignUp.route) { SignUp(navController, mainViewModel) }
+        composable(
+            route = Screen.Chat.route,
+            arguments = listOf(navArgument("chatId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val chatId = backStackEntry.arguments?.getString("chatId")!!
+            ScreenChat(navController = navController,chatViewModel, chatId = chatId)
+        }
+    }
+}*/

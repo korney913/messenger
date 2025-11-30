@@ -13,17 +13,19 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 
 private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80,
-    background = Color(0xFFFFFBFE)
+    primary = Color(0xFFF6F7F8),
+    secondary = Color(0xFF1E90FF),
+    onPrimary = Color(0xFF121212),
+    background = Color(0xFF121212),
+    onBackground = Color(0xFF333333),
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40,
-    background = Color(0x11111111)
+    primary = Color(0xFF1A001A),
+    secondary = Color(0xFF1E90FF),
+    onPrimary = Color(0xFFF6F7F8),
+    background = Color(0xFFF6F7F8),
+    onBackground = Color(0xFFCCCCCC),
 
 
     /* Other default colors to override
@@ -40,7 +42,6 @@ private val LightColorScheme = lightColorScheme(
 @Composable
 fun MessengerTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
     dynamicColor: Boolean = true,
     content: @Composable () -> Unit
 ) {

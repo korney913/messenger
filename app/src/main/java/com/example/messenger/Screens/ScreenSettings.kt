@@ -5,12 +5,16 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavController
+import com.example.messenger.DataBase.DataSign
 import com.example.messenger.MainViewModel
 import com.example.messenger.MyButton
 import com.example.messenger.R
@@ -25,6 +29,9 @@ object Settings {
     @Composable
     fun ScreenSettings(navController: NavController, viewModel: MainViewModel) {
         val context = LocalContext.current
+        val db = DataSign()
+        val name = remember { mutableStateOf("") }
+        val password = remember { mutableStateOf("") }
         Scaffold(
             bottomBar = {
                 botButton(navController = navController)
@@ -39,12 +46,34 @@ object Settings {
                     darkTheme.value = !darkTheme.value
                 }
                 MyButton(stringResource(R.string.switch_language)) {
-                    language.value = if (language.value == Locale("en")) Locale("ru") else Locale("en")
+                    language.value =
+                        if (language.value.language == "en") Locale("ru") else Locale("en")
                     viewModel.toggleLanguage(context)
-                    navController.navigate(Screen.Screen3.route) { //переход на тот же экран, чтобы обновить текст кнопок
-                        popUpTo(Screen.Screen3.route) { inclusive = true }
-                        launchSingleTop = true   //чтобы навигация не создавала новый экран, если он уже открыт.
+                    navController.navigate(Screen.Settings.route) { //переход на тот же экран, чтобы обновить текст кнопок
+                        popUpTo(Screen.Settings.route) { inclusive = true }
+                        launchSingleTop =
+                            true   //чтобы навигация не создавала новый экран, если он уже открыт.
                     }
+                }
+                MyButton("Sign out") {
+                    db.signOut(navController)
+                    viewModel.clearDatabase()
+                }
+                MyButton("Delete account") {
+                    db.deleteAccount(navController, name.value, password.value)
+                    viewModel.clearDatabase()
+                }
+                Column {
+                    TextField(
+                        value = name.value,
+                        onValueChange = { name.value = it },
+                        placeholder = { Text("name") },
+                    )
+                    TextField(
+                        value = password.value,
+                        onValueChange = { password.value = it },
+                        placeholder = { Text("password") },
+                    )
                 }
             }
         }

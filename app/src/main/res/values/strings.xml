@@ -1,5 +1,15 @@
 <resources>
+    <!-- ScreenSettings -->
     <string name="app_name">messenger</string>
     <string name="dark_theme">Dark Theme</string>
     <string name="switch_language">Switch Language</string>
+
+    <!-- ScreenSign -->
+    <string name="hint_email">Email</string>
+    <string name="hint_password">password</string>
+    <string name="btn_signin">Sign in</string>
+    <string name="btn_signup">New user? Sign up</string>
+    <string name="btn_signup2">Sign up</string>
+    <string name="hint_name">Name</string>
+    <string name="hint_location">location</string>
 </resources>
