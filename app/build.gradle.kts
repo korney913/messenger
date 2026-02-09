@@ -47,6 +47,7 @@ dependencies {
 
     implementation("androidx.room:room-ktx:2.8.0")
     implementation(libs.androidx.lifecycle.process)
+    implementation(libs.androidx.room.ktx)
     kapt("androidx.room:room-compiler:2.8.0")
     implementation("androidx.lifecycle:lifecycle-livedata-ktx:2.9.4")
     implementation(platform("com.google.firebase:firebase-bom:33.0.0"))
@@ -56,6 +57,7 @@ dependencies {
     implementation("androidx.activity:activity-ktx:1.11.0")
     implementation ("com.google.firebase:firebase-storage-ktx")
     implementation("androidx.compose.material:material-icons-extended:1.7.8")
+    implementation("androidx.datastore:datastore-preferences:1.2.0")
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)

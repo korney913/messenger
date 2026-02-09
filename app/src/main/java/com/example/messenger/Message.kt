@@ -5,19 +5,22 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.example.messenger.DataBase.RoomDataBase
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.concurrent.TimeUnit
 
 enum class MessageStatus {
+    PENDING,
     SENT,
-    DELIVERED,
     READ;
 
     companion object {
@@ -29,29 +32,23 @@ enum class MessageStatus {
             }
         }
         @Composable
-        fun MessageStatusIcon(status: MessageStatus, color: Color) {
+        fun MessageStatusIcon(status: MessageStatus, color: Color, modifier: Modifier) {
             Row {
                 when (status) {
+                    PENDING -> {
+                        Icon(
+                            imageVector = Icons.Default.Schedule,
+                            contentDescription = "Delivered",
+                            tint = color,
+                            modifier = modifier
+                        )
+                    }
                     SENT -> {
                         Icon(
                             imageVector = Icons.Default.Check,
                             contentDescription = "Sent",
                             tint = color,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                    DELIVERED -> {
-                        Icon(
-                            imageVector = Icons.Default.Check,
-                            contentDescription = "Delivered",
-                            tint = color,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Icon(
-                            imageVector = Icons.Default.Check,
-                            contentDescription = "Delivered",
-                            tint = color,
-                            modifier = Modifier.size(16.dp)
+                            modifier = modifier
                         )
                     }
                     READ -> {
@@ -59,13 +56,13 @@ enum class MessageStatus {
                             imageVector = Icons.Default.Check,
                             contentDescription = "Read",
                             tint = color,
-                            modifier = Modifier.size(16.dp)
+                            modifier = modifier
                         )
                         Icon(
                             imageVector = Icons.Default.Check,
                             contentDescription = "Read",
                             tint = color,
-                            modifier = Modifier.size(16.dp)
+                            modifier = modifier
                         )
                     }
                 }
@@ -87,7 +84,7 @@ data class Message(
         senderUid = message.senderUid,
         messageText = message.messageText,
         status = message.status,
-        dateOfSend = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date(message.dateOfSend)),
+        dateOfSend = if (message.dateOfSend!=0L) SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date(message.dateOfSend)) else "",
         photoName = message.photoName
     )
 }
@@ -95,7 +92,7 @@ data class Message(
 
 data class Chat (
     val chatId: String = "",
-    val participants: List<String> = emptyList<String>(),
+    val participants: List<String> = emptyList(),
     val listMessage: List <Message> =  emptyList(),
     val chatName: String? = null,
     val chatPhoto: String? = null,
@@ -121,9 +118,8 @@ data class Chat (
 
 fun dateConvertor(dateOfSend: String): String{
    return try {
-        // Используем старый добрый SimpleDateFormat
-        val inputFormat = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault())
-        val outputFormat = java.text.SimpleDateFormat("d MMMM", java.util.Locale("ru"))
+        val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+        val outputFormat = SimpleDateFormat("d MMMM", Locale.getDefault())
         val date = inputFormat.parse(dateOfSend)
         if (date != null) {
             outputFormat.format(date)
@@ -133,4 +129,38 @@ fun dateConvertor(dateOfSend: String): String{
     } catch (e: Exception) {
         dateOfSend.substringBefore(" ")
     }
+}
+
+@Composable
+fun timeAfterMassage(dateOfSend: String): String{
+    val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+    val messageDate = inputFormat.parse(dateOfSend) ?: return ""
+    val now = Date()
+    val diffInMillis = now.time - messageDate.time
+    if (diffInMillis <= 0) return "now"
+    val seconds = TimeUnit.MILLISECONDS.toSeconds(diffInMillis)
+    val minutes = TimeUnit.MILLISECONDS.toMinutes(diffInMillis)
+    val hours = TimeUnit.MILLISECONDS.toHours(diffInMillis)
+    val days = TimeUnit.MILLISECONDS.toDays(diffInMillis)
+    return when {
+        days > 30 -> {
+            val outputFormat = SimpleDateFormat("d MMM", Locale.ENGLISH)
+            outputFormat.format(messageDate)
+        }
+        days > 0 -> "${days}${stringResource(R.string.days)}"
+        hours > 0 -> "${hours}${stringResource(R.string.hours)}"
+        minutes > 0 -> "${minutes}${stringResource(R.string.minutes)}"
+        else -> "1${stringResource(R.string.minutes)}"
+    }
+}
+
+fun unreadMessages(chat: Chat):Int{
+    var n = 1
+    val N = chat.listMessage.size
+    try {
+        while (chat.listMessage[N-n-1].status!= MessageStatus.READ)
+            n++
+    }
+    catch (e: Exception){}
+    return n
 }

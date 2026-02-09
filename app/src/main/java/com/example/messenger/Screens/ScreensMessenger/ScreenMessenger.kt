@@ -26,7 +26,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
@@ -37,18 +36,24 @@ import com.example.messenger.ChatViewModel
 import com.example.messenger.MessageStatus
 import com.example.messenger.Screen
 import com.example.messenger.SearchBar
-import com.example.messenger.botButton
+import com.example.messenger.BotButton
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Create
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import com.example.messenger.MyIconButton
-import com.example.messenger.dateConvertor
+import com.example.messenger.R
+import com.example.messenger.timeAfterMassage
+import com.example.messenger.unreadMessages
+import kotlinx.coroutines.launch
 
 @Composable
 fun ScreenMessenger(navController: NavController, chatViewModel: ChatViewModel) {
-    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val searchQuery = remember { mutableStateOf("") }
     val listOfChats = chatViewModel.chats
     val listOfUsers = chatViewModel.users
@@ -66,7 +71,7 @@ fun ScreenMessenger(navController: NavController, chatViewModel: ChatViewModel) 
     }
     Scaffold(
         bottomBar = {
-            botButton(navController = navController)
+            BotButton(navController = navController)
         }
     ) { paddingValues ->
         Column(
@@ -127,94 +132,116 @@ fun ScreenMessenger(navController: NavController, chatViewModel: ChatViewModel) 
                                         if (numberOfUnreadMessages != 0) {
                                             chat.listMessage.takeLast(numberOfUnreadMessages)
                                                 .forEach { item ->
+                                                    scope.launch {
                                                     chatViewModel.readMessage(item)
+                                                        }
                                                 }
                                         }
                                     }
-                                    .padding(8.dp),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Box {
                                     AvatarImage(
-                                        context,
                                         chatAvatarPath,
                                         Modifier.size(60.dp)
                                     )
                                     if (!isGroup && isOnline) {
                                         Box(
                                             modifier = Modifier
-                                                .size(12.dp)
-                                                .background(Color.Green, shape = CircleShape)
-                                                .align(Alignment.BottomEnd)
+                                                .size(14.dp)
+                                                .background(MaterialTheme.colorScheme.background, shape = CircleShape) // Обводка индикатора
                                                 .padding(2.dp)
-                                        )
+                                                .align(Alignment.BottomEnd)
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .fillMaxSize()
+                                                    .background(Color(0xFF4CAF50), shape = CircleShape) // Насыщенный зеленый
+                                            )
+                                        }
                                     }
                                 }
                                 Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = chatTitle,
-                                        fontWeight = FontWeight.Bold,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                    if (chat.listMessage.isNotEmpty()) {
-                                        Row {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            text = chatTitle,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                            maxLines = 1,
+                                            style = MaterialTheme.typography.titleMedium,
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                        if (chat.listMessage.isNotEmpty()) {
                                             val lastMsg = chat.listMessage.last()
+                                            Text(
+                                                timeAfterMassage(lastMsg.dateOfSend),
+                                                color = MaterialTheme.colorScheme.secondary,
+                                                style = MaterialTheme.typography.bodySmall
+                                            )
+                                        }
+                                    }
+                                    if (chat.listMessage.isNotEmpty()) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            val lastMsg = chat.listMessage.last()
+                                            val lastMsgText = if (lastMsg.messageText==""&&lastMsg.photoName!=null) stringResource(R.string.photo)
+                                            else lastMsg.messageText
                                             val previewText =
                                                 if (isGroup) {
-                                                    if (lastMsg.senderUid != currentUserId) "${listOfUsers[lastMsg.senderUid]?.name ?: ""}: ${lastMsg.messageText}"
-                                                    else "You: ${lastMsg.messageText}"
-                                                } else {
-                                                    lastMsg.messageText
-                                                }
+                                                    if (lastMsg.senderUid != currentUserId) "${listOfUsers[lastMsg.senderUid]?.name ?: ""}: ${lastMsgText}"
+                                                    else "You: ${lastMsgText}"
+                                                } else { lastMsgText }
                                             Text(
                                                 text = previewText,
                                                 color = MaterialTheme.colorScheme.secondary,
                                                 maxLines = 1,
                                                 overflow = TextOverflow.Ellipsis,
-                                                style = MaterialTheme.typography.bodyMedium
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                modifier = Modifier.weight(1f)
                                             )
                                             if (lastMsg.senderUid==currentUserId) {
-                                                MessageStatus.MessageStatusIcon(lastMsg.status, MaterialTheme.colorScheme.secondary)
+                                                MessageStatus.MessageStatusIcon(
+                                                    lastMsg.status,
+                                                    MaterialTheme.colorScheme.primary,
+                                                    Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() })
+                                                )
                                                 Spacer(Modifier.width(5.dp))
                                             }
-                                            Text(
-                                                dateConvertor(lastMsg.dateOfSend),
-                                                color = MaterialTheme.colorScheme.primary,
-                                                fontSize = 18.sp
-                                            )                                        }
-                                    }
-                                }
 
-                                if (numberOfUnreadMessages > 0) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(24.dp)
-                                            .background(
-                                                MaterialTheme.colorScheme.primary,
-                                                shape = CircleShape
-                                            ),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text(
-                                            text = "$numberOfUnreadMessages",
-                                            color = Color.White,
-                                            style = MaterialTheme.typography.labelSmall
-                                        )
+                                            if (numberOfUnreadMessages > 0) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .padding(start = 4.dp)
+                                                        .size(24.dp)
+                                                        .background(
+                                                            MaterialTheme.colorScheme.primary,
+                                                            shape = CircleShape
+                                                        ),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Text(
+                                                        text = "$numberOfUnreadMessages",
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = MaterialTheme.colorScheme.onPrimary,
+                                                        fontSize = 12.sp
+                                                    )
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             }
                         }
                     }
                 }
-                // Кнопка создания чата
                 MyIconButton(
                     Icons.Default.Create,
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
-                        .padding(16.dp)
-                        .background(MaterialTheme.colorScheme.secondary, shape = CircleShape)
+                        .padding(20.dp)
+                        .size(60.dp)
+                        .background(MaterialTheme.colorScheme.secondary, shape = CircleShape),
                 ) {
                     navController.navigate(Screen.AddChat.route)
                 }
@@ -223,13 +250,3 @@ fun ScreenMessenger(navController: NavController, chatViewModel: ChatViewModel) 
     }
 }
 
-fun unreadMessages(chat: Chat):Int{
-    var n = 1
-    val N = chat.listMessage.size
-    try {
-        while (chat.listMessage[N-n-1].status!= MessageStatus.READ)
-            n++
-    }
-    catch (e: Exception){}
-    return n
-}

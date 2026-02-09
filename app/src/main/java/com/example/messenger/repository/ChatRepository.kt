@@ -1,6 +1,5 @@
 package com.example.messenger.repository
 
-import android.app.Application
 import android.content.Context
 import android.util.Base64
 import com.example.messenger.Chat
@@ -10,6 +9,11 @@ import com.example.messenger.MessageStatus
 import com.example.messenger.User
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.firestore.FieldPath
+import com.google.firebase.firestore.ListenerRegistration
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.tasks.await
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -19,8 +23,8 @@ import kotlin.collections.forEach
 class ChatRepository(
     private val dao: RoomDataBase.MainDb,
 ) {
-    fun listenForChats(loggedInUser: FirebaseUser, onUpdate: (List<RoomDataBase.ChatEntity>) -> Unit) {
-        FireBase().store.collection("Chats")
+    fun listenForChats(loggedInUser: FirebaseUser, onUpdate: (List<RoomDataBase.ChatEntity>) -> Unit): ListenerRegistration {
+        return FireBase().store.collection("Chats")
             .whereArrayContains("participants", loggedInUser.uid)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
@@ -41,16 +45,8 @@ class ChatRepository(
                 onUpdate(chats!!)
             }
     }
-    fun listenForUsersByList(loggedInUser: FirebaseUser, chats: List<Chat>, onResult: (List<User>) -> Unit) {
-        val uids = buildList {
-            chats.forEach { addAll(it.participants) }
-            loggedInUser?.uid?.let { add(it) }
-        }.distinct()
-        if (uids.isEmpty()) {
-            onResult(emptyList())
-            return
-        }
-        FireBase().store.collection("Users")
+    fun listenForUsersByList(uids: List<String>, onResult: (List<User>) -> Unit): ListenerRegistration {
+        return FireBase().store.collection("Users")
             .whereIn(FieldPath.documentId(), uids)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
@@ -65,7 +61,7 @@ class ChatRepository(
                         uid = doc.id,
                         name = data["name"] as? String ?: "",
                         dateOfBirth = data["dateOfBirth"] as? String ?: "",
-                        location = data["location"] as? String ?: "",
+                        city = data["location"] as? String ?: "",
                         friends = friends,
                         isOnline = data["isOnline"] as? Boolean ?: false,
                         lastSeen = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
@@ -78,12 +74,12 @@ class ChatRepository(
             }
     }
 
-    fun listenForAllMessages(chats: List<Chat>, context: Context, onChatMessagesUpdate: (List<RoomDataBase.MessageEntity>) -> Unit) {
-        chats.forEach { chat ->
-            FireBase().store.collection("Chats")
+    fun listenForAllMessages(chats: List<Chat>, context: Context, onChatMessagesUpdate: (List<RoomDataBase.MessageEntity>) -> Unit): List<ListenerRegistration> {
+        return chats.map { chat ->
+             FireBase().store.collection("Chats")
                 .document(chat.chatId)
                 .collection("Messages")
-                .orderBy("dateOfSend") // 👈 сортировка по дате
+                .orderBy("dateOfSend")
                 .addSnapshotListener { snapshot, error ->
                     if (error != null) {
                         println("Firestore listener error (Messages): ${error.message}")
@@ -97,13 +93,14 @@ class ChatRepository(
                             val file = File(context.filesDir, photoName)
                             file.outputStream().use { stream -> stream.write(bytes) }
                         }
+                        val isPending = doc.metadata.hasPendingWrites()
                         RoomDataBase.MessageEntity(
                             messageId = doc.id,
                             chatId = chat.chatId,
                             senderUid = doc.getString("senderUid") ?: "",
                             messageText = doc.getString("messageText") ?: "",
-                            status = MessageStatus.fromString(doc.getString("status") ?: ""),
-                            dateOfSend = doc.getLong("dateOfSend") ?: 0L,
+                            status = if (isPending) MessageStatus.PENDING else MessageStatus.fromString(doc.getString("status") ?: ""),
+                            dateOfSend = doc.getTimestamp("dateOfSend")?.toDate()?.time ?: System.currentTimeMillis(),
                             photoName = doc.getString("photoName")
                         )
                     } ?: emptyList()

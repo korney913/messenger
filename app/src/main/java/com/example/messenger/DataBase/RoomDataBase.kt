@@ -38,7 +38,7 @@ class RoomDataBase {
 
         companion object {
             fun getDb(context: Context): MainDb {
-                //context.deleteDatabase("test.db") // удаляем старую версию ⚠️
+                //context.deleteDatabase("test.db") // удаляем старую версию
                 return Room.databaseBuilder(
                     context,
                     MainDb::class.java,
@@ -63,7 +63,7 @@ class RoomDataBase {
         constructor(user: User) : this(
             uid = user.uid,
             name = user.name,
-            location = user.location,
+            location = user.city,
             dateOfBirth = user.dateOfBirth,
             friends = user.friends,
             isOnline = user.isOnline,
@@ -72,18 +72,6 @@ class RoomDataBase {
         )
     }
 
-    /*@Entity(
-    tableName = "chats",
-    foreignKeys = [
-        ForeignKey(
-            entity = UserEntity::class,
-            parentColumns = ["uid"],
-            childColumns = ["userOwnerId"],
-            onDelete = CASCADE
-        )
-    ],
-    indices = [Index("userOwnerId")]
-)*/
     @Entity(tableName = "chats")
     data class ChatEntity(
         @PrimaryKey val chatId: String = "",
@@ -93,18 +81,6 @@ class RoomDataBase {
         val adminId: String? = null
     )
 
-    /*@Entity(
-    tableName = "messages",
-    foreignKeys = [
-        ForeignKey(
-            entity = ChatEntity::class,
-            parentColumns = ["chatUid"],
-            childColumns = ["chatId"],
-            onDelete = CASCADE
-        )
-    ],
-    indices = [Index("chatId")]
-)*/
     @Entity(tableName = "messages")
     data class MessageEntity(
         @PrimaryKey val messageId: String,
@@ -142,6 +118,9 @@ class RoomDataBase {
 
         @Query("SELECT * FROM users WHERE uid = :uid")
         suspend fun getUser(uid: String): UserEntity?
+
+        @Query("SELECT * FROM users WHERE uid = :uid")
+        fun flowUser(uid: String): Flow<UserEntity?>
 
         @Query("SELECT * FROM users")
         fun getUsers(): Flow<List<UserEntity>>

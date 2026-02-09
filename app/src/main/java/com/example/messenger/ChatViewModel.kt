@@ -3,6 +3,7 @@ package com.example.messenger
 import android.app.Application
 import android.content.Context
 import android.util.Base64
+import android.util.Log
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -23,12 +24,19 @@ import java.io.File
 import java.lang.System
 import java.util.UUID
 import kotlin.String
+import com.google.firebase.Timestamp
+import com.google.firebase.firestore.ListenerRegistration
+import kotlinx.coroutines.Dispatchers
+import java.text.SimpleDateFormat
+import java.util.*
 
 class ChatViewModel(
     application: Application,
     val localBase: RoomDataBase.MainDb,
     val chatRepository: ChatRepository
 ) : AndroidViewModel(application)  {
+    private val activeListeners = mutableListOf<ListenerRegistration>()
+    private val messageListeners = mutableListOf<ListenerRegistration>()
     val loggedInUser = FirebaseAuth.getInstance().currentUser
     var users by mutableStateOf<Map<String, User>>(emptyMap())
     var chats by mutableStateOf<List<Chat>>(emptyList())
@@ -45,136 +53,158 @@ class ChatViewModel(
     }
     init {
         if (loggedInUser != null) {
-            chatRepository.listenForChats(loggedInUser!!) { it ->
-                chats = it.map { chatWithMessages ->   ///?
-                    Chat(chatWithMessages)
-                }    ///?
-                viewModelScope.launch {
-                    it.forEach { chat ->
-                        localBase.getDao().insertChat(chat)
-                    }
-                }
-                val context = getApplication<Application>().applicationContext
-                chatRepository.listenForAllMessages(chats, context) { messages ->
-                    viewModelScope.launch {
-                        localBase.getDao().insertMessages(messages)
-                    }
-                }
-
-                chatRepository.listenForUsersByList(loggedInUser, chats) { userList ->
-                    viewModelScope.launch {
-                        userList.forEach {
-                            var localAvatarPath: String? = ""
-                            var avatarUpdatedAt = 0L
-                            var newAvatarUpdatedAt = 0L
-                            val localUser = localBase.getDao().getUser(it.uid)
-                            try {
-                                newAvatarUpdatedAt =
-                                    it.localAvatarPath!!.substringAfter("?").toLong()
-                                avatarUpdatedAt =
-                                    localUser!!.localAvatarPath!!.substringAfter("?").toLong()
-                            } catch (e: Exception) {
-                            }
-                            if (newAvatarUpdatedAt != avatarUpdatedAt) {
-                                val photo = FireBase().store
-                                    .collection("Photo")
-                                    .document("avatars")
-                                    .collection("Users")
-                                    .document(it.uid)
-                                    .get()
-                                    .await()
-                                    .getString("base64String")
-                                if (!photo.isNullOrEmpty()) {
-                                    try {
-                                        val context =
-                                            getApplication<Application>().applicationContext
-                                        val bytes = Base64.decode(photo, Base64.DEFAULT)
-                                        val file = File(context.filesDir, it.localAvatarPath!!)
-                                        file.outputStream().use { stream -> stream.write(bytes) }
-                                    } catch (e: Exception) {
-                                        e.printStackTrace()
-                                    }
-                                }
-                            }
-                            localBase.getDao().insertUser(RoomDataBase.UserEntity(it))
-                        }
-                    }
-                }
-            }
-
-            viewModelScope.launch {
-                localBase.getDao().getChatsWithMessages()
-                    .map { chatList -> chatList.map { Chat(it) } }
-                    .collect { mappedChats ->
-                        chats = chatRepository.sortChatsByLastMessage(mappedChats)
-                    }
-            }
-            viewModelScope.launch {
-                localBase.getDao().getUsers()
-                    .map { list -> list.map { User(it) } }
-                    .collect { mapped ->
-                        users = mapped.associateBy { it.uid }
-                    }
-            }
+            startFirebaseSync()
+            observeLocalDatabase()
         }
     }
 
-    fun updataAvatar(){}
-    fun sendMessage(context: Context, messageText: String, fileName: String?)=viewModelScope.launch {
+    private fun startFirebaseSync() {
+        val context = getApplication<Application>().applicationContext
+
+        val chatsReg = chatRepository.listenForChats(loggedInUser!!) { chatEntities ->
+            viewModelScope.launch(Dispatchers.IO) {
+                chatEntities.forEach { localBase.getDao().insertChat(it) }
+            }
+            messageListeners.forEach { it.remove() }
+            messageListeners.clear()
+            val currentChats = chatEntities.map { Chat(it) }
+            val msgRegs = chatRepository.listenForAllMessages(currentChats, context) { messages ->
+                viewModelScope.launch(Dispatchers.IO) {
+                    localBase.getDao().insertMessages(messages)
+                }
+            }
+            messageListeners.addAll(msgRegs)
+            val uids = buildList {
+                chatEntities.forEach { addAll(it.participants) }
+                loggedInUser?.uid?.let { add(it) }
+            }.distinct()
+            if (uids.isNotEmpty()) {
+                val usersReg = chatRepository.listenForUsersByList(uids) { userList ->
+                        viewModelScope.launch(Dispatchers.IO) {
+                            userList.forEach { remoteUser ->
+                                updateAvatar(remoteUser)
+                                localBase.getDao().insertUser(RoomDataBase.UserEntity(remoteUser))
+                            }
+                        }
+                    }
+                messageListeners.add(usersReg)
+            }
+        }
+        activeListeners.add(chatsReg)
+    }
+
+    private fun observeLocalDatabase() {
+        viewModelScope.launch {
+            localBase.getDao().getChatsWithMessages()
+                .map { list -> chatRepository.sortChatsByLastMessage(list.map { Chat(it) }) }
+                .collect { mappedChats ->
+                    chats = mappedChats
+                }
+        }
+        viewModelScope.launch {
+            localBase.getDao().getUsers()
+                .map { list -> list.map { User(it) }.associateBy { it.uid } }
+                .collect { mappedUsers ->
+                    users = mappedUsers
+                }
+        }
+    }
+
+    suspend fun updateAvatar(user:User) {
+        var avatarUpdatedAt = 0L
+        var newAvatarUpdatedAt = 0L
+        val localUser = localBase.getDao().getUser(user.uid)
+        try {
+            newAvatarUpdatedAt =
+                user.localAvatarPath!!.substringAfter("?").toLong()
+            avatarUpdatedAt =
+                localUser!!.localAvatarPath!!.substringAfter("?").toLong()
+        } catch (e: Exception) {
+        }
+        if (newAvatarUpdatedAt != avatarUpdatedAt) {
+            val photo = FireBase().store
+                .collection("Photo")
+                .document("avatars")
+                .collection("Users")
+                .document(user.uid)
+                .get()
+                .await()
+                .getString("base64String")
+            if (!photo.isNullOrEmpty()) {
+                try {
+                    val context = getApplication<Application>().applicationContext
+                    val bytes = Base64.decode(photo, Base64.DEFAULT)
+                    val file = File(context.filesDir, user.localAvatarPath!!)
+                    file.outputStream().use { stream -> stream.write(bytes) }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+        }
+    }
+    suspend fun sendMessage(context: Context, messageText: String, fileName: String?) {
+        val currentChat = openedChat ?: return
+        val currentUser = loggedInUser ?: return
+        val chatId = currentChat.chatId
+
         var photo = ""
-        if (fileName != "") {
-            val file = File(context.filesDir, fileName)
-            val bytes = file.readBytes()
-            photo = Base64.encodeToString(bytes, Base64.DEFAULT)
+        if (!fileName.isNullOrEmpty()) {
+            try {
+                val file = File(context.filesDir, fileName)
+                if (file.exists()) {
+                    val bytes = file.readBytes()
+                    photo = Base64.encodeToString(bytes, Base64.DEFAULT)
+                }
+            } catch (e: Exception) {
+                Log.e("SendMessage", "Ошибка кодирования фото: ${e.message}")
+            }
         }
         val messageId = UUID.randomUUID().toString()
         val message = RoomDataBase.MessageEntity(
             messageId = messageId,
-            chatId = openedChat!!.chatId,
-            senderUid = loggedInUser!!.uid,
+            chatId = chatId,
+            senderUid = currentUser.uid,
             messageText = messageText,
-            status = MessageStatus.SENT,
+            status = MessageStatus.PENDING,
             dateOfSend = System.currentTimeMillis(),
             photoName = fileName
         )
         localBase.getDao().insertMessage(message)
-
-        FireBase().store.collection("Chats")
-            .document(openedChat!!.chatId)
-            .collection("Messages")
-            .document(messageId).set(mapOf(
-                "senderUid" to message.senderUid,
-                "messageText" to  message.messageText,
-                "status" to message.status,
-                "dateOfSend" to message.dateOfSend,
-                "photoName" to fileName,
-                "photo" to photo
-            ))
+        try {
+            FireBase().store.collection("Chats")
+                .document(chatId)
+                .collection("Messages")
+                .document(messageId)
+                .set(mapOf(
+                    "senderUid" to currentUser.uid,
+                    "messageText" to messageText,
+                    "status" to MessageStatus.SENT.name,
+                    "dateOfSend" to com.google.firebase.firestore.FieldValue.serverTimestamp(),
+                    "photoName" to fileName,
+                    "photo" to photo
+                ))
+                .await()
+        } catch (e: Exception) {
+            Log.e("SendMessage", "Ошибка отправки в Firebase: ${e.message}")
+        }
     }
 
-    fun readMessage(message: Message)=viewModelScope.launch {
-        localBase.getDao().updateMessageStatus(message.messageId, MessageStatus.READ)
+    suspend fun readMessage(message: Message) {
         FireBase().store.collection("Chats")
             .document(openedChat!!.chatId)
             .collection("Messages")
             .document(message.messageId)
-            .update("status", MessageStatus.READ.toString())
+            .update("status", MessageStatus.READ.name)
+            .await()
+        localBase.getDao().updateMessageStatus(message.messageId, MessageStatus.READ)
     }
 
-    fun addChat(listUid: List<String>, chatName: String? = null, chatPhoto: String? = null, adminId: String? = null) {
-        val list = listUid + loggedInUser!!.uid
-        FireBase().addChat(list, chatName, chatPhoto, adminId){ chatId ->
-            viewModelScope.launch {
-                val chat = RoomDataBase.ChatEntity(
-                    participants = list,
-                    chatId = chatId,
-                    chatName = chatName,
-                    chatPhoto = chatPhoto,
-                    adminId = adminId
-                )
-                localBase.getDao().insertChat(chat)
-            }
-        }
+    override fun onCleared() {
+        super.onCleared()
+        activeListeners.forEach { it.remove() }
+        messageListeners.forEach { it.remove() }
+        activeListeners.clear()
+        messageListeners.clear()
     }
     companion object{
         val factory: ViewModelProvider.Factory = object : ViewModelProvider.Factory{

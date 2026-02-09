@@ -15,9 +15,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FieldValue
+import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.messaging.FirebaseMessaging
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 @Composable
 fun RequestNotificationPermission() {
@@ -58,6 +64,18 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
     private val CHANNEL_ID = "MESSENGER_CHANNEL"
 
+    override fun onNewToken(token: String) {
+        super.onNewToken(token)
+        val userId = FirebaseAuth.getInstance().currentUser?.uid
+        if (userId != null) {
+            // Используем GlobalScope или создаем отдельный Scope для сервиса
+            CoroutineScope(Dispatchers.IO).launch {
+                FirebaseFirestore.getInstance().collection("Users").document(userId)
+                    .update("tokens", FieldValue.arrayUnion(token))
+            }
+        }
+    }
+
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
         super.onMessageReceived(remoteMessage)
 
@@ -77,7 +95,6 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         val notificationManager =
             getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
-        // Создание канала уведомлений (только один раз)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
@@ -110,7 +127,6 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             .setAutoCancel(true)
             .build()
 
-        // Проверка разрешения только если нужно
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
             ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
         ) {

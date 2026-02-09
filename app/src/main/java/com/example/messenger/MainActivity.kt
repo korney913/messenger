@@ -1,5 +1,6 @@
 package com.example.messenger
 
+import android.content.Context
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
@@ -34,7 +35,7 @@ import com.example.messenger.Screens.SignIn
 import com.example.messenger.Screens.ScreensMessenger.ScreenMessenger
 import com.example.messenger.Screens.ScreenProfile
 import com.example.messenger.Screens.Settings
-import com.example.messenger.Screens.Settings.ScreenSettings
+import com.example.messenger.Screens.ScreenSettings
 import com.example.messenger.Screens.SignUp
 import com.example.messenger.ui.theme.MessengerTheme
 import com.google.firebase.auth.FirebaseAuth
@@ -50,13 +51,24 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.compose.navigation
+import com.example.messenger.Screens.DeleteAcc
 import com.example.messenger.Screens.ScreensMessenger.ScreenAddChat
 import com.example.messenger.Screens.ScreensMessenger.ScreenAddGroup
+import com.example.messenger.Screens.SettingsDataStore
+import kotlinx.coroutines.launch
+import java.util.Locale
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        lifecycleScope.launch {
+            SettingsDataStore(this@MainActivity).loadSettings()
+            applyAppLocale(this@MainActivity, Settings.language.value)
+        }
+
         ProcessLifecycleOwner.get().lifecycle.addObserver(
             LifecycleEventObserver { _, event ->
                 when (event) {
@@ -68,7 +80,7 @@ class MainActivity : ComponentActivity() {
         )
         enableEdgeToEdge()
         setContent {
-            MessengerTheme(darkTheme= Settings.darkTheme.value) {
+            MessengerTheme(darkTheme= Settings.darkTheme.value, multiplier = Settings.textSizeScale.value) {
                 Navigation()
             }
         }
@@ -79,13 +91,21 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+fun applyAppLocale(context: Context, locale: Locale) {
+    Locale.setDefault(locale)
+    val config = context.resources.configuration
+    config.setLocale(locale)
+    context.resources.updateConfiguration(config, context.resources.displayMetrics)
+}
+
 sealed class Screen(val route: String) {
     object Messenger : Screen("Messenger")
-    object Profile : Screen("Profile")
+    object Profile : Screen("Profile}")
     object Friends : Screen("Friends")
     object Settings : Screen("Settings")
     object SignUp : Screen("SignUp")
     object LogIn : Screen("LogIn")
+    object DeleteAcc : Screen("DeleteAcc")
     object AddChat : Screen("AddChat")
     object AddGroup : Screen("AddGroup")
     object Chat : Screen("Chat/{chatId}") {
@@ -93,7 +113,7 @@ sealed class Screen(val route: String) {
     }
 }
 @Composable
-fun botButton(navController: NavController) {
+fun BotButton(navController: NavController) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
     val navigationBars = WindowInsets.navigationBars.asPaddingValues() // отступы под кнопки/жесты
@@ -169,6 +189,7 @@ fun Navigation() {
         composable(Screen.Friends.route) { ScreenFriends(navController, mainViewModel) }
         composable(Screen.Settings.route) { ScreenSettings(navController, mainViewModel) }
         composable(Screen.LogIn.route) { SignIn(navController, mainViewModel) }
+        composable(Screen.DeleteAcc.route) { DeleteAcc(navController, mainViewModel) }
         composable(Screen.SignUp.route) { SignUp(navController, mainViewModel) }
         navigation(
             startDestination = Screen.Messenger.route,
@@ -185,24 +206,10 @@ fun Navigation() {
                 ScreenMessenger(navController, chatViewModel)
             }
             composable(Screen.AddChat.route) { backStackEntry ->
-                val chatGraphBackStackEntry = remember(backStackEntry) {
-                    navController.getBackStackEntry("chatGraph")
-                }
-                val chatViewModel: ChatViewModel = viewModel(
-                    viewModelStoreOwner  = chatGraphBackStackEntry,
-                    factory = ChatViewModel.factory
-                )
-                ScreenAddChat(navController, chatViewModel)
+                ScreenAddChat(navController, mainViewModel)
             }
             composable(Screen.AddGroup.route) { backStackEntry ->
-                val chatGraphBackStackEntry = remember(backStackEntry) {
-                    navController.getBackStackEntry("chatGraph")
-                }
-                val chatViewModel: ChatViewModel = viewModel(
-                    viewModelStoreOwner  = chatGraphBackStackEntry,
-                    factory = ChatViewModel.factory
-                )
-                ScreenAddGroup(navController, chatViewModel)
+                ScreenAddGroup(navController, mainViewModel)
             }
             composable(
                 route = Screen.Chat.route,
@@ -224,7 +231,7 @@ fun Navigation() {
 
 
 
-private fun setUserOnline(isOnline: Boolean) {
+fun setUserOnline(isOnline: Boolean) {
     val user = FirebaseAuth.getInstance().currentUser
     user?.let {
         FirebaseFirestore.getInstance().collection("Users")
@@ -242,35 +249,5 @@ private fun setUserOnline(isOnline: Boolean) {
 }
 
 
-/*@Composable
-fun Navigation() {
-    val chatViewModel: ChatViewModel = viewModel(factory = ChatViewModel.factory)
-    val mainViewModel: MainViewModel = viewModel(factory = MainViewModel.factory)
-    val navController = rememberNavController()
-    LaunchedEffect(Unit) {
-        val user = FirebaseAuth.getInstance().currentUser
-        val userIsLoggedIn = user?.uid != null
-        if (userIsLoggedIn) {
-            navController.navigate(Screen.Messenger.route)
-        }
-    }
-    RequestNotificationPermission()
-    NavHost(
-        navController = navController,
-        startDestination =  Screen.LogIn.route
-    ) {
-        composable(Screen.Messenger.route) { ScreenMessenger(navController, chatViewModel) }
-        composable(Screen.Profile.route) { ScreenProfile(navController, mainViewModel) }
-        composable(Screen.Friends.route) { ScreenFriends(navController, mainViewModel) }
-        composable(Screen.Settings.route) { ScreenSettings(navController, mainViewModel) }
-        composable(Screen.LogIn.route) { SignIn(navController, mainViewModel) }
-        composable(Screen.SignUp.route) { SignUp(navController, mainViewModel) }
-        composable(
-            route = Screen.Chat.route,
-            arguments = listOf(navArgument("chatId") { type = NavType.StringType })
-        ) { backStackEntry ->
-            val chatId = backStackEntry.arguments?.getString("chatId")!!
-            ScreenChat(navController = navController,chatViewModel, chatId = chatId)
-        }
-    }
-}*/
+
+

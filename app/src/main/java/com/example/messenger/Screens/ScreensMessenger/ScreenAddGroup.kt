@@ -1,85 +1,118 @@
 package com.example.messenger.Screens.ScreensMessenger
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavController
-import com.example.messenger.ChatViewModel
 import com.example.messenger.MyButton
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.example.messenger.AvatarImage
+import com.example.messenger.MainViewModel
 import com.example.messenger.MyTextField
+import com.example.messenger.R
 import com.example.messenger.Screen
+import com.example.messenger.SearchBar
+import com.example.messenger.User
+import com.example.messenger.ButtonBack
+import kotlinx.coroutines.launch
+import kotlin.collections.plus
 
 @Composable
-fun ScreenAddGroup(navController: NavController, chatViewModel: ChatViewModel) {
-    val context = LocalContext.current
-    val listOfUsers = chatViewModel.users
-    val listState = rememberLazyListState(listOfUsers.size)
+fun ScreenAddGroup(navController: NavController, viewModel: MainViewModel) {
+    val scope = rememberCoroutineScope()
     val groupName = remember { mutableStateOf("") }
     val listOfParticipants = remember { mutableStateOf(emptyList<String>()) }
+    val searchQuery = remember { mutableStateOf("") }
+    val list = remember { mutableStateOf(emptyList<User>()) }
+    val isLoading = remember { mutableStateOf(false) }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .statusBarsPadding()
-            .navigationBarsPadding()
-            .imePadding()
-            .background(MaterialTheme.colorScheme.background)
-    ) {
-        MyTextField(groupName.value,"Group name") {groupName.value = it }
-        LazyColumn(
-            modifier = Modifier
-                .weight(1f),
-            state = listState,
+    fun loadMoreFriends() {
+        if (isLoading.value) return
+
+        val currentSize = list.value.size
+        val allFriendsIds = viewModel.loggedInUser.friends
+
+        if (currentSize >= allFriendsIds.size) return
+
+        isLoading.value = true
+
+        scope.launch {
+            try {
+                val nextBatchIds = allFriendsIds.drop(currentSize).take(10)
+                val newUsers = viewModel.getTenUsers(nextBatchIds)
+                list.value = list.value + newUsers
+            } catch (e: Exception) {
+                println("Ошибка при загрузке друзей: ${e.message}")
+            } finally {
+                isLoading.value = false
+            }
+        }
+    }
+    LaunchedEffect(Unit) {
+        loadMoreFriends()
+    }
+
+    Scaffold { paddingValues ->
+        Column(
+            modifier = Modifier.padding(paddingValues)
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+                .padding(8.dp)
         ) {
-            items(listOfUsers.values.toList()) { user ->
-                if (user.uid != chatViewModel.loggedInUser!!.uid) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                ButtonBack({ navController.navigate(Screen.Messenger.route) }, true)
+                SearchBar(
+                    query = searchQuery.value,
+                    onQueryChange = { searchQuery.value = it }
+                )
+            }
+            MyTextField(groupName.value, stringResource(R.string.group_name)) { groupName.value = it }
+            Spacer(modifier = Modifier.height(8.dp))
+            LazyColumn(modifier = Modifier.weight(1f)) {
+
+                val filteredList = list.value.filter {
+                    it.name.contains(searchQuery.value, ignoreCase = true) &&
+                            it.name != viewModel.loggedInUser.name
+                }
+                itemsIndexed(filteredList) { index, user ->
+                    val isSelected = listOfParticipants.value.contains(user.uid)
                     Row(
-                        modifier = Modifier.fillMaxWidth()
-                            .clickable(onClick = {
-                                //chatViewModel.openedChat = chat //попытаться убрать
-                                //navController.navigate(Screen.Chat.createRoute(chat.chatId))
-                            }),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp)
                     ) {
                         AvatarImage(
-                            context,
-                            user.localAvatarPath,
-                            Modifier.size(50.dp)
+                            base64String = user.localAvatarPath,
+                            modifier = Modifier.size(60.dp)
                         )
-                        if (user.isOnline) {
-                            Box(
-                                modifier = Modifier
-                                    .size(10.dp) //
-                                    .background(Color.Green, shape = CircleShape)
-                            )
+                        Column(modifier = Modifier.padding(start = 12.dp).weight(1f)) {
+                            Text(user.name, style = MaterialTheme.typography.titleMedium)
+                            Text(user.city, style = MaterialTheme.typography.bodySmall)
                         }
                         Checkbox(
-                            checked = listOfParticipants.value.contains(user.uid),
-                            onCheckedChange = { isChecked ->
-                                if (isChecked) {
+                            checked = isSelected,
+                            onCheckedChange = { checked ->
+                                if (checked) {
                                     listOfParticipants.value = listOfParticipants.value + user.uid
                                 } else {
                                     listOfParticipants.value = listOfParticipants.value - user.uid
@@ -87,9 +120,37 @@ fun ScreenAddGroup(navController: NavController, chatViewModel: ChatViewModel) {
                             }
                         )
                     }
+                    if (index == filteredList.lastIndex && searchQuery.value.isEmpty()) {
+                        LaunchedEffect(list.value.size) {
+                            loadMoreFriends()
+                        }
+                    }
+                }
+                if (isLoading.value) {
+                    item {
+                        Text(
+                            "Загрузка...",
+                            modifier = Modifier.fillMaxWidth().padding(16.dp),
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            MyButton("Create group", modifier = Modifier.fillMaxWidth(),
+                enabled = groupName.value.isNotEmpty() && listOfParticipants.value.isNotEmpty()) {
+                scope.launch {
+                    val id = viewModel.addChat(
+                        listOfParticipants.value,
+                        groupName.value,
+                        null,
+                        viewModel.loggedInUser.uid
+                    )
+                    if (id.isNotEmpty()) {
+                        navController.navigate(Screen.Chat.createRoute(id))
+                    }
                 }
             }
         }
-        MyButton ("Create group", ) {chatViewModel.addChat(listOfParticipants.value, groupName.value, null, chatViewModel.loggedInUser!!.uid) }
     }
 }

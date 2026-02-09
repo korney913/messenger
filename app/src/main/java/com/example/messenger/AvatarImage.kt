@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
+import android.util.Base64
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -17,39 +18,80 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import java.io.File
 import java.io.FileOutputStream
+import androidx.core.graphics.scale
 
 @Composable
-fun AvatarImage(context: Context, filePath: String?, modifier: Modifier = Modifier.size(200.dp)) {
-    var a = false
-    if(filePath!=null){
-        val file = File(context.filesDir, filePath)
-        val bitmap = BitmapFactory.decodeFile(file.absolutePath)
-        if (bitmap != null) {
-            Image(
-                bitmap = bitmap.asImageBitmap(),
-                contentDescription = "Avatar",
-                modifier = modifier
-                    .clip(CircleShape),
-                contentScale = ContentScale.Crop
-            )
-        } else {a = true}
-    } else {a = true}
-    if(a) {
+fun AvatarImage(filePath: String?, modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    val bitmap = remember(filePath) {
+        if (!filePath.isNullOrBlank()) {
+            val file = File(context.filesDir, filePath)
+            if (file.exists()) {
+                BitmapFactory.decodeFile(file.absolutePath)?.asImageBitmap()
+            } else null
+        } else null
+    }
+
+    if (bitmap != null) {
+        Image(
+            bitmap = bitmap,
+            contentDescription = "Avatar",
+            modifier = modifier.clip(CircleShape),
+            contentScale = ContentScale.Crop
+        )
+    } else {
+        // Заглушка (Gray Box)
         Box(
             modifier = modifier
-                .clip(CircleShape)
-                .background(Color.Gray)
+                .background(Color.Gray, CircleShape)
+        )
+    }
+}
+
+fun String.toImageBitmap(): ImageBitmap? {
+    return try {
+        if (this.isBlank()) return null
+        val imageBytes = Base64.decode(this, Base64.DEFAULT)
+        val bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
+        bitmap?.asImageBitmap()
+    } catch (e: Exception) {
+        null
+    }
+}
+@Composable
+fun AvatarImage(
+    base64String: String?,
+    modifier: Modifier = Modifier,
+    placeholderColor: Color = Color.Gray
+) {
+    val avatar = remember(base64String) {
+        base64String?.toImageBitmap()
+    }
+
+    if (avatar != null) {
+        Image(
+            bitmap = avatar,
+            contentDescription = "Avatar",
+            modifier = modifier.clip(CircleShape),
+            contentScale = ContentScale.Crop
+        )
+    } else {
+        Box(
+            modifier = modifier.background(placeholderColor, CircleShape)
         )
     }
 }
@@ -153,11 +195,9 @@ fun saveImageToInternalStorage(context: Context, imageUri: Uri, fileName: String
             if (fileSize > targetSizeBytes) {
                 quality -= 10
                 if (quality < 10) {
-                    val scaled = Bitmap.createScaledBitmap(
-                        originalBitmap,
+                    val scaled = originalBitmap.scale(
                         (originalBitmap.width * 0.8).toInt(),
-                        (originalBitmap.height * 0.8).toInt(),
-                        true
+                        (originalBitmap.height * 0.8).toInt()
                     )
                     if (scaled != originalBitmap) {
                         originalBitmap = scaled
@@ -174,22 +214,4 @@ fun saveImageToInternalStorage(context: Context, imageUri: Uri, fileName: String
         e.printStackTrace()
         null
     }
-}
-
-fun deleteImageFromInternalStorage(context: Context, fileName: String){
-    val file = File(context.filesDir, fileName)
-    file.delete()
-}
-
-fun deleteAllFiles(context: Context): Boolean {
-    val dir = context.filesDir
-    var success = true
-
-    dir.listFiles()?.forEach { file ->
-        if (!file.delete()) {
-            success = false
-        }
-    }
-
-    return success
 }

@@ -1,63 +1,166 @@
 package com.example.messenger.Screens.ScrreensFriends
 
+import android.graphics.BitmapFactory
+import android.util.Base64
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Chat
+import androidx.compose.material.icons.filled.Group
+import androidx.compose.material.icons.filled.PersonAdd
+import androidx.compose.material.icons.filled.PersonRemove
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.example.messenger.AvatarImage
 import com.example.messenger.MainViewModel
 import com.example.messenger.MyButton
+import com.example.messenger.MyIconButton
+import com.example.messenger.R
+import com.example.messenger.Screen
 import com.example.messenger.SearchBar
 import com.example.messenger.User
+import kotlinx.coroutines.launch
 
 @Composable
-fun FindFreinds(navController: NavController, viewModel: MainViewModel) {
+fun FindFriends(navController: NavController, viewModel: MainViewModel) {
+    val scope = rememberCoroutineScope()
     val searchQuery = remember { mutableStateOf("") }
     val list = remember { mutableStateOf(emptyList<User>()) }
-
-    LaunchedEffect(Unit) {
-        viewModel.getRandomUsers {it->
-            list.value = it
+    val isLoading = remember { mutableStateOf(false) }
+    val lastUserUid = remember { mutableStateOf<String?>(null) }
+    val isEndOfDatabase = remember { mutableStateOf(false) }
+    fun loadMoreFriends() {
+        if (isLoading.value || isEndOfDatabase.value) return
+        isLoading.value = true
+        scope.launch {
+            try {
+                val newUsers = viewModel.getTenUsers(startUid = lastUserUid.value)
+                if (newUsers.isEmpty()) {
+                    isEndOfDatabase.value = true
+                } else {
+                    lastUserUid.value = newUsers.lastOrNull()?.uid
+                    val filteredNewUsers = newUsers.filter { newUser ->
+                        !viewModel.loggedInUser.friends.contains(newUser.uid) &&
+                                newUser.uid != viewModel.loggedInUser.uid
+                    }
+                    if (filteredNewUsers.isNotEmpty()) {
+                        list.value = list.value + filteredNewUsers
+                    }
+                    if (filteredNewUsers.isEmpty() && newUsers.isNotEmpty()) {
+                        isLoading.value = false
+                        loadMoreFriends()
+                    }
+                }
+            } catch (e: Exception) {
+                println("Ошибка при поиске друзей: ${e.message}")
+            } finally {
+                isLoading.value = false
+            }
         }
     }
+
+    LaunchedEffect(Unit) {
+        loadMoreFriends()
+    }
+
     Column(
-        modifier = Modifier.padding(10.dp)
+        modifier = Modifier
+            .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
+            .padding(10.dp)
     ) {
         SearchBar(
             query = searchQuery.value,
             onQueryChange = { searchQuery.value = it }
         )
-        list.value.forEach { user ->
-            if (user.name.contains(searchQuery.value, ignoreCase = true)&&user.name!= viewModel.loggedInUser.name) {
-                Row {
-                    Box(
-                        modifier = Modifier
-                            .size(100.dp) //
-                            .background(Color.Red, shape = CircleShape)
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        LazyColumn(modifier = Modifier.fillMaxSize()) {
+
+            val filteredList = list.value.filter {
+                it.name.contains(searchQuery.value, ignoreCase = true) &&
+                        it.name != viewModel.loggedInUser.name
+            }
+            itemsIndexed(filteredList) { index, user ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp)
+                ) {
+                    AvatarImage(
+                        base64String = user.localAvatarPath,
+                        modifier = Modifier.size(60.dp)
                     )
-                    Column {
-                        Text(user.name)
-                        Text(user.location)
+                    Column(modifier = Modifier.padding(start = 12.dp).weight(1f)) {
+                        Text(user.name, style = MaterialTheme.typography.titleMedium)
+                        Text(user.city, style = MaterialTheme.typography.bodySmall)
                     }
-                    Column {
-                        MyButton("Add Friend") { viewModel.addFriend(viewModel.loggedInUser!!.uid,user.uid)}
-                        MyButton("Add Chat") { viewModel.addChat(user.uid)}
+                    if(!viewModel.loggedInUser.friends.contains(user.uid))
+                     MyIconButton (Icons.Default.PersonAdd) {
+                         scope.launch {
+                             viewModel.addFriend(viewModel.loggedInUser.uid, user.uid)
+                         }
+                    }
+                    else MyIconButton (Icons.Default.PersonRemove){
+                        scope.launch {
+                            viewModel.removeFriend(viewModel.loggedInUser.uid, user.uid)
+                        }
+                    }
+
+                    MyIconButton (Icons.Default.Chat) {
+                        scope.launch {
+                            val chatId = viewModel.addChat(listOf(user.uid))
+                            if (chatId.isNotEmpty()) {
+                                navController.navigate(Screen.Chat.createRoute(chatId))
+                            } else {
+                                println("Ошибка при добавлении чата")
+                            }
+                        }
                     }
                 }
-            } else { }
+                if (index == filteredList.lastIndex && searchQuery.value.isEmpty()) {
+                    LaunchedEffect(list.value.size) {
+                        loadMoreFriends()
+                    }
+                }
+            }
+            if (isLoading.value) {
+                item {
+                    Text(
+                        "Загрузка...",
+                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                }
+            }
         }
     }
 }

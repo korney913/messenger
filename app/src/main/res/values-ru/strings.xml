@@ -1,21 +1,49 @@
 <resources>
+
+    <string name="chats">Чаты</string>
+    <string name="profile">Профиль</string>
+    <string name="friends">Друзья</string>
+    <string name="settings">Настройки</string>
+
     <!-- ScreenSettings -->
     <string name="app_name">приложение</string>
     <string name="dark_theme">Тёмная тема</string>
+    <string name="text_size_scale">Размер текста</string>
     <string name="switch_language">Сменить язык</string>
 
     <!-- ScreenSign -->
     <string name="hint_email">электронная почта</string>
     <string name="hint_password">Пароль</string>
-    <string name="btn_signin">Войти</string>
+    <string name="btn_sign_in">Войти</string>
+    <string name="btn_sign_out">Выйти</string>
+    <string name="btn_delete_acc">Удалить аккаунт</string>
     <string name="btn_signup">Новый пользователь? Зарегистрироваться</string>
     <string name="btn_signup2">Зарегистрироваться</string>
     <string name="hint_name">Имя</string>
     <string name="hint_location">Место жительства</string>
 
-    <!-- ScreenSettings -->
+    <!-- ScreenProfile -->
+    <string name="birthday">Дeнь рождения</string>
+    <string name="city">Город</string>
 
+    <!-- ScreenMessenger -->
+    <string name="days">д</string>
+    <string name="hours">ч</string>
+    <string name="minutes">м</string>
+    <string name="group_name">Название группы</string>
+    <string name="photo">Фото</string>
+    <string name="search">Поиск...</string>
 
-    <!-- ScreenSettings -->
+    <!-- ScreenFriends -->
+    <string name="write">Написать</string>
+    <string name="add_friend">Добавить в друзья</string>
+
+    <!-- Error messages -->
+    <string name="email_already_in_use">Этот email уже зарегистрирован</string>
+    <string name="weak_password">Пароль слишком простой (минимум 6 символов)</string>
+    <string name="wrong_password_or_email">Неправильный email или пароль</string>
+    <string name="invalid_email">Некорректный формат email</string>
+    <string name="network_error">Нет соединения с сервером</string>
+    <string name="delete_account_failed">Не удалось удалить: </string>
 
 </resources>

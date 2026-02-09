@@ -26,15 +26,12 @@ fun ZoomableImage(
     Dialog(onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
-
-        // Загружаем bitmap из файла
         val bitmap = remember(path) {
             BitmapFactory.decodeFile(path)
-        } ?: return@Dialog  // если не загрузилось — выйдем
-
-        var scale by remember { mutableStateOf(1f) }
-        var offsetX by remember { mutableStateOf(0f) }
-        var offsetY by remember { mutableStateOf(0f) }
+        } ?: return@Dialog
+        var scale by remember { mutableFloatStateOf(1f) }
+        var offsetX by remember { mutableFloatStateOf(0f) }
+        var offsetY by remember { mutableFloatStateOf(0f) }
 
         Box(
             modifier = Modifier.fillMaxSize()
@@ -42,10 +39,10 @@ fun ZoomableImage(
                 .pointerInput(Unit) {
                     detectTapGestures(
                         onDoubleTap = {
-                            if (scale < 1.1f) {
-                                scale = 2.5f
+                            scale = if (scale < 1.1f) {
+                                2.5f
                             } else {
-                                scale = 1f
+                                1f
                             }
                             offsetX = 0f
                             offsetY = 0f

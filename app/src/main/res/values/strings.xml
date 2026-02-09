@@ -1,15 +1,48 @@
 <resources>
+
+    <string name="chats">Chats</string>
+    <string name="profile">Profile</string>
+    <string name="friends">Friends</string>
+    <string name="settings">Settings</string>
+
     <!-- ScreenSettings -->
     <string name="app_name">messenger</string>
     <string name="dark_theme">Dark Theme</string>
+    <string name="text_size_scale">Text size</string>
     <string name="switch_language">Switch Language</string>
 
     <!-- ScreenSign -->
     <string name="hint_email">Email</string>
     <string name="hint_password">password</string>
-    <string name="btn_signin">Sign in</string>
+    <string name="btn_sign_in">Sign in</string>
+    <string name="btn_sign_out">Sign out</string>
+    <string name="btn_delete_acc">Delete Account</string>
     <string name="btn_signup">New user? Sign up</string>
     <string name="btn_signup2">Sign up</string>
     <string name="hint_name">Name</string>
     <string name="hint_location">location</string>
+
+    <!-- ScreenProfile -->
+    <string name="birthday">Birthday</string>
+    <string name="city">City</string>
+
+    <!-- ScreenMessenger -->
+    <string name="days">d</string>
+    <string name="hours">h</string>
+    <string name="minutes">m</string>
+    <string name="group_name">Group name</string>
+    <string name="photo">Photo</string>
+    <string name="search">Search...</string>
+
+    <!-- ScreenFriends -->
+    <string name="write">Write</string>
+    <string name="add_friend">Add friend</string>
+
+    <string name="email_already_in_use">This email is already in use</string>
+    <string name="weak_password">Password is too weak (at least 6 characters)</string>
+    <string name="wrong_password_or_email">Wrong email or password</string>
+    <string name="invalid_email">Invalid email format</string>
+    <string name="network_error">No connection to the server</string>
+    <string name="delete_account_failed">Failed to delete account: </string>
+
 </resources>

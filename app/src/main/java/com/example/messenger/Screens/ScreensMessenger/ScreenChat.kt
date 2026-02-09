@@ -37,7 +37,7 @@ import androidx.navigation.NavController
 import com.example.messenger.ChatViewModel
 import com.example.messenger.Message
 import com.example.messenger.Screen
-import com.example.messenger.buttonBack
+import com.example.messenger.ButtonBack
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -51,30 +51,35 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.rememberCoroutineScope
 import com.example.messenger.Photo
 import com.example.messenger.saveImageToInternalStorage
 import java.util.UUID
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.sp
 import com.example.messenger.MyIconButton
 import com.example.messenger.MyTextField2
 import com.example.messenger.R
 import com.example.messenger.RemoveButton
 import com.example.messenger.ZoomableImage
 import com.example.messenger.dateConvertor
+import kotlinx.coroutines.launch
 import java.io.File
 
 @Composable
 fun ScreenChat(navController: NavController, chatViewModel: ChatViewModel, chatId: String){
+    val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val chat = chatViewModel.chats.find { it.chatId == chatId }
-    val listMessage = chat!!.listMessage
+    chatViewModel.openedChat = chat
+    val listMessage = chat?.listMessage ?: emptyList()
     val photo = chatViewModel.photo
     val listState = rememberLazyListState(listMessage.size)
+    var otherId: String? = ""
     val text = chatViewModel.text
     val boxWidth = remember { mutableStateOf(0.dp) }
     val boxHeight = remember { mutableStateOf(0.dp) }
@@ -112,7 +117,7 @@ fun ScreenChat(navController: NavController, chatViewModel: ChatViewModel, chatI
         if (uri != null) {
             chatViewModel.updatePhoto(UUID.randomUUID().toString())
             saveImageToInternalStorage(context, uri, photo.value)
-            }
+        }
         else {
             Log.d("Gallery", "Пользователь отменил выбор")
         }
@@ -127,7 +132,6 @@ fun ScreenChat(navController: NavController, chatViewModel: ChatViewModel, chatI
             var chatTitle = "Loading..."
             var chatAvatar = ""
             isGroup = !chat.chatName.isNullOrBlank()
-            // Логика как в ScreenMessenger:
             if (isGroup) {
                 // Это ГРУППА
                 chatTitle = chat.chatName!!
@@ -135,8 +139,7 @@ fun ScreenChat(navController: NavController, chatViewModel: ChatViewModel, chatI
             } else {
                 // Это ЛИЧНЫЙ ЧАТ. Ищем собеседника (не меня)
                 val myId = chatViewModel.loggedInUser?.uid
-                val otherId = chat.participants.firstOrNull { it != myId }
-
+                otherId = chat.participants.firstOrNull { it != myId }
                 if (otherId != null) {
                     val user = chatViewModel.users[otherId]
                     chatTitle = user?.name ?: "User"
@@ -145,12 +148,14 @@ fun ScreenChat(navController: NavController, chatViewModel: ChatViewModel, chatI
                     chatTitle = "Saved Messages"
                 }
             }
-            Row(verticalAlignment = Alignment.CenterVertically) { // Добавил выравнивание
-                buttonBack({ navController.navigate(Screen.Messenger.route) }, true)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                ButtonBack({ navController.navigate(Screen.Messenger.route) }, true)
                 Spacer(Modifier.width(8.dp))
-                AvatarImage(context, chatAvatar, Modifier.size(40.dp))
-                Spacer(Modifier.width(8.dp))
-                Text(chatTitle, style = MaterialTheme.typography.titleMedium)
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    AvatarImage( chatAvatar, Modifier.size(40.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(chatTitle, maxLines = 1, style = MaterialTheme.typography.titleMedium,color = MaterialTheme.colorScheme.onSurface)
+                }
             }
             Box(
                 modifier = Modifier.fillMaxSize()
@@ -172,31 +177,27 @@ fun ScreenChat(navController: NavController, chatViewModel: ChatViewModel, chatI
                 ) {
                     if (listMessage.isNotEmpty()) {
                         itemsIndexed(listMessage) { index, message ->
-                            if (index > 0)
-                                if (listMessage[index - 1].dateOfSend.substringBefore(" ") != message.dateOfSend.substringBefore(
-                                        " "
-                                    )
+                            if (((index > 0&&listMessage[index - 1].dateOfSend.substringBefore(" ") != message.dateOfSend.substringBefore(" "))||index == 0)&&message.dateOfSend!="") {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.Center
                                 ) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.Center
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .background(
-                                                    color = Color(0x77777777),
-                                                    shape = RoundedCornerShape(20.dp)
-                                                )
-                                                .padding(all = 5.dp)
-                                        ) {
-                                            Text(
-                                                dateConvertor(message.dateOfSend),
-                                                color = MaterialTheme.colorScheme.background,
-                                                fontSize = 18.sp
+                                    Box(
+                                        modifier = Modifier
+                                            .background(
+                                                color = Color(0x55000000), // Полупрозрачный фон даты
+                                                shape = RoundedCornerShape(20.dp)
                                             )
-                                        }
+                                            .padding(all = 5.dp)
+                                    ) {
+                                        Text(
+                                            dateConvertor(message.dateOfSend),
+                                            color = Color.White, // Белый текст на темном фоне даты
+                                            style = MaterialTheme.typography.bodyMedium
+                                        )
                                     }
                                 }
+                            }
                             val isOwner = message.senderUid == chatViewModel.loggedInUser!!.uid
                             Row(
                                 modifier = Modifier
@@ -204,12 +205,10 @@ fun ScreenChat(navController: NavController, chatViewModel: ChatViewModel, chatI
                                     .fillMaxSize(),
                                 horizontalArrangement = if (isOwner) Arrangement.End else Arrangement.Start,
                             ) {
-                                if(!isOwner&&isGroup) AvatarImage(context, chatViewModel.users[message.senderUid]!!.localAvatarPath, Modifier.size(50.dp))
-                                val color =
-                                    if (isOwner) Color.Green else MaterialTheme.colorScheme.background
+                                if(!isOwner&&isGroup) AvatarImage( chatViewModel.users[message.senderUid]!!.localAvatarPath, Modifier.size(50.dp))
                                 MessageBox(
                                     message,
-                                    color,
+                                    isOwner,
                                     chatViewModel,
                                     boxWidth.value,
                                     boxHeight.value,
@@ -225,7 +224,7 @@ fun ScreenChat(navController: NavController, chatViewModel: ChatViewModel, chatI
                     RemoveButton { photo.value = "" }
                 }
             }
-            Row(modifier = Modifier) {
+            Row(modifier = Modifier.background(MaterialTheme.colorScheme.surface)) { // Фон панели ввода
                 MyIconButton(Icons.Default.Add) {
                     launcher.launch(
                         PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
@@ -235,9 +234,11 @@ fun ScreenChat(navController: NavController, chatViewModel: ChatViewModel, chatI
                     chatViewModel.updateText(it)
                 }
                 MyIconButton(Icons.Filled.Send, enabled = photo.value != "" || text.value != "") {
-                    chatViewModel.sendMessage(context, text.value, photo.value)
-                    text.value = ""
-                    chatViewModel.updatePhoto("")
+                    scope.launch {
+                        chatViewModel.sendMessage(context, text.value, photo.value)
+                        text.value = ""
+                        chatViewModel.updatePhoto("")
+                    }
                 }
             }
         }
@@ -245,16 +246,18 @@ fun ScreenChat(navController: NavController, chatViewModel: ChatViewModel, chatI
 }
 
 @Composable
-fun MessageBox(message: Message, color: Color, chatViewModel: ChatViewModel, boxWidth: Dp, boxHeight: Dp, isGroup: Boolean){
-    var messageText = remember { mutableStateOf(
-         if (message.senderUid==chatViewModel.loggedInUser!!.uid) message.messageText+" \u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0"
-         else message.messageText + " \u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0"
+fun MessageBox(message: Message, isOwner: Boolean, chatViewModel: ChatViewModel, boxWidth: Dp, boxHeight: Dp, isGroup: Boolean){
+    val messageText = remember { mutableStateOf(
+        if (message.senderUid==chatViewModel.loggedInUser!!.uid) message.messageText+" \u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0"
+        else message.messageText + " \u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0"
     ) }
     val context = LocalContext.current
     val zoomImage = remember { mutableStateOf<String?>(null) }
-    if (message.senderUid!=chatViewModel.loggedInUser!!.uid)
-        if (message.status!= MessageStatus.READ)
+    LaunchedEffect(message.messageId) {
+        if (message.senderUid != chatViewModel.loggedInUser?.uid && message.status != MessageStatus.READ) {
             chatViewModel.readMessage(message)
+        }
+    }
     Box(modifier = Modifier
         .widthIn(max = boxWidth - 90.dp)
         .wrapContentWidth()) {
@@ -265,12 +268,12 @@ fun MessageBox(message: Message, color: Color, chatViewModel: ChatViewModel, box
                 modifier = Modifier
                     .wrapContentWidth()
                     .background(
-                        color = color,
+                        color = if (isOwner) Color(0xFF3390EC) else MaterialTheme.colorScheme.surface,
                         shape = RoundedCornerShape(16.dp)
                     )
-                    .padding(all = 2.dp)
+                    .padding(all = if(message.messageText=="") 0.dp else 8.dp)
             ) {
-                if (isGroup) Text(chatViewModel.users[message.senderUid]!!.name, color = Color.Blue)
+                if (isGroup) Text(chatViewModel.users[message.senderUid]!!.name, color = Color(0xFF0088CC), style = MaterialTheme.typography.bodyLarge) // Синий цвет имени
                 if (message.photoName != "" && message.photoName != null) {
                     Box(modifier = Modifier.clickable(onClick = {
                         zoomImage.value = File(context.filesDir, message.photoName).absolutePath
@@ -287,16 +290,16 @@ fun MessageBox(message: Message, color: Color, chatViewModel: ChatViewModel, box
                 }
                 if (message.messageText != "") Text(
                     messageText.value,
-                    modifier = Modifier.padding(start = 3.dp),
-                    color = MaterialTheme.colorScheme.primary,
+                    color =  MaterialTheme.colorScheme.onSurface,
+                    style = MaterialTheme.typography.bodyLarge
                 )
             }
         }
         Row(
             modifier = Modifier
-                .padding(all = if (message.messageText=="") 5.dp else 0.dp)
+                .padding(all = 5.dp)
                 .background(
-                    color = if(message.messageText=="") Color(0x77777777) else Color.Transparent,
+                    color = if(message.messageText=="") Color(0x44000000) else Color.Transparent,
                     shape = RoundedCornerShape(10.dp)
                 )
                 .align(Alignment.BottomEnd),
@@ -304,11 +307,15 @@ fun MessageBox(message: Message, color: Color, chatViewModel: ChatViewModel, box
         ) {
             Text(
                 message.dateOfSend.substringAfter(" ").dropLast(3),
-                color = if(message.messageText=="") Color.White else Color.Gray
+                color =  if(message.messageText=="") Color.White else MaterialTheme.colorScheme.onSurface,
+                style = MaterialTheme.typography.bodyMedium
             )
             Spacer(Modifier.width(5.dp))
-            if(message.senderUid==chatViewModel.loggedInUser.uid) {
-                MessageStatus.MessageStatusIcon(message.status, if (message.messageText == "") Color.White else Color.Gray)
+            if(message.senderUid==chatViewModel.loggedInUser?.uid) {
+                MessageStatus.MessageStatusIcon(message.status,
+                    if(message.messageText=="") Color.White else MaterialTheme.colorScheme.onSurface,
+                    Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() })
+                )
                 Spacer(Modifier.width(5.dp))
             }
         }
@@ -320,5 +327,3 @@ fun MessageBox(message: Message, color: Color, chatViewModel: ChatViewModel, box
         )
     }
 }
-
-

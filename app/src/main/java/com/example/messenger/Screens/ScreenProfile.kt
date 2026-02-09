@@ -1,56 +1,48 @@
 package com.example.messenger.Screens
 
-import android.content.Context
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.net.Uri
-import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CardGiftcard
+import androidx.compose.material.icons.filled.Group
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import androidx.room.util.TableInfo
 import com.example.messenger.AvatarImage
 import com.example.messenger.MainViewModel
-import com.example.messenger.MyButton
-import com.example.messenger.botButton
+import com.example.messenger.R
+import com.example.messenger.BotButton
 import com.example.messenger.saveImageToInternalStorage
-import java.io.File
-import java.io.FileOutputStream
 
 
 @Composable
 fun ScreenProfile(navController: NavController, viewModel: MainViewModel) {
     val context = LocalContext.current
-    val expanded = remember { mutableStateOf(false) }
-    val savedAvatarPath = remember {mutableStateOf<String?>(viewModel.loggedInUser.localAvatarPath)}
+    val savedAvatarPath = remember {mutableStateOf(viewModel.loggedInUser.localAvatarPath)}
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri: Uri? ->
@@ -61,13 +53,11 @@ fun ScreenProfile(navController: NavController, viewModel: MainViewModel) {
                 savedAvatarPath.value = fileName
                 viewModel.changeAvatar(context, fileName)
             }
-        } else {
-            Log.d("Gallery", "Пользователь отменил выбор")
         }
     }
     Scaffold(
         bottomBar = {
-            botButton(navController = navController)
+            BotButton(navController = navController)
         }
     ) { paddingValues ->
         Column(
@@ -79,27 +69,60 @@ fun ScreenProfile(navController: NavController, viewModel: MainViewModel) {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.Center
             ) {
-                AvatarImage(context,savedAvatarPath.value, Modifier
+                AvatarImage(savedAvatarPath.value, Modifier
                     .size(200.dp)
                     .clickable(onClick = { launcher.launch(
                         PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                     ) }))
             }
-            Text( viewModel.loggedInUser.name )
-            MyButton("Learn more") {
-                expanded.value = true
-            }
-            DropdownMenu(
-                expanded = expanded.value,
-                onDismissRequest = { expanded.value = false }
+            Column(
+                modifier = Modifier.fillMaxWidth()
             ) {
-                DropdownMenuItem(
-                    text = { "" },
-                    onClick = {
-                    }
-                )
-            }
+                Text( viewModel.loggedInUser.name,
+                    style = MaterialTheme.typography.titleLarge,
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Center)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.CardGiftcard,
+                        contentDescription = "Birthday",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = "${stringResource(R.string.birthday)}: ${viewModel.loggedInUser.dateOfBirth}",
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Home,
+                        contentDescription = "City",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = "${stringResource(R.string.city)}: ${viewModel.loggedInUser.city}",
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                }
+                Row(modifier = Modifier.fillMaxWidth()
+                    .clickable(onClick = {navController.navigate("friends")}),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Group,
+                        contentDescription = "Friends",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(Modifier.width(8.dp))
 
+                    Text(
+                        text = "${stringResource(R.string.friends)}: ${viewModel.loggedInUser.friends.size}",
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                }
+            }
         }
     }
 }

@@ -2,78 +2,152 @@ package com.example.messenger.Screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MaterialTheme.colorScheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
+import androidx.datastore.preferences.preferencesDataStore
 import androidx.navigation.NavController
-import com.example.messenger.DataBase.DataSign
+import com.example.messenger.ButtonForSettings
+import com.example.messenger.ButtonTextSize
 import com.example.messenger.MainViewModel
-import com.example.messenger.MyButton
 import com.example.messenger.R
 import com.example.messenger.Screen
-import com.example.messenger.botButton
+import com.example.messenger.BotButton
+import kotlinx.coroutines.launch
 import java.util.Locale
+import android.content.Context
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.floatPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
+import com.example.messenger.DataBase.FireBase
+import com.example.messenger.applyAppLocale
+import com.example.messenger.setUserOnline
+import kotlinx.coroutines.flow.first
 
-object Settings {
+val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "user_settings")
+
+class SettingsDataStore(private val context: Context) {
+
+    private val DARK_THEME_KEY = booleanPreferencesKey("dark_theme")
+    private val LANGUAGE_KEY = stringPreferencesKey("language")
+    private val TEXT_SIZE_KEY = floatPreferencesKey("text_size")
+
+    suspend fun saveSettings(dark: Boolean, lang: String, size: Float) {
+        context.dataStore.edit { prefs ->
+            prefs[DARK_THEME_KEY] = dark
+            prefs[LANGUAGE_KEY] = lang
+            prefs[TEXT_SIZE_KEY] = size
+        }
+    }
+
+    suspend fun loadSettings() {
+        val prefs = context.dataStore.data.first()
+
+        Settings.darkTheme.value = prefs[DARK_THEME_KEY] ?: false
+        Settings.textSizeScale.value = prefs[TEXT_SIZE_KEY] ?: 1.0f
+
+        val langTag = prefs[LANGUAGE_KEY] ?: Locale.getDefault().toLanguageTag()
+        Settings.language.value = Locale.forLanguageTag(langTag)
+    }
+}
+
+data object Settings {
     val darkTheme = mutableStateOf(false)
     val language = mutableStateOf(Locale.getDefault())
+    val textSizeScale = mutableStateOf(1f)
 
-    @Composable
-    fun ScreenSettings(navController: NavController, viewModel: MainViewModel) {
-        val context = LocalContext.current
-        val db = DataSign()
-        val name = remember { mutableStateOf("") }
-        val password = remember { mutableStateOf("") }
-        Scaffold(
-            bottomBar = {
-                botButton(navController = navController)
-            }
-        ) { paddingValues ->
+    fun persist(context: android.content.Context, scope: kotlinx.coroutines.CoroutineScope) {
+        val dataStore = SettingsDataStore(context)
+        scope.launch {
+            dataStore.saveSettings(
+                darkTheme.value,
+                language.value.toLanguageTag(),
+                textSizeScale.value
+            )
+        }
+    }
+}
+
+@Composable
+fun ScreenSettings(navController: NavController, viewModel: MainViewModel) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val db = FireBase()
+    Scaffold(
+        bottomBar = {
+            BotButton(navController = navController)
+        }
+    ) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .padding(paddingValues)
+                .fillMaxSize()
+                .background(colorScheme.background)
+        ) {
+            Text(
+                stringResource(R.string.settings),
+                style = MaterialTheme.typography.titleLarge,
+                color = colorScheme.onBackground,
+                modifier = Modifier.padding(16.dp)
+            )
+
             Column(
-                modifier = Modifier
-                    .padding(paddingValues)
-                    .background(MaterialTheme.colorScheme.background)
+                modifier = Modifier.clip(RoundedCornerShape(12.dp)),
+                verticalArrangement = Arrangement.spacedBy(1.dp)
             ) {
-                MyButton(stringResource(R.string.dark_theme)) {
-                    darkTheme.value = !darkTheme.value
+                ButtonForSettings(stringResource(R.string.dark_theme)) {
+                    Settings.darkTheme.value = !Settings.darkTheme.value
+                    Settings.persist(context, scope)
                 }
-                MyButton(stringResource(R.string.switch_language)) {
-                    language.value =
-                        if (language.value.language == "en") Locale("ru") else Locale("en")
-                    viewModel.toggleLanguage(context)
-                    navController.navigate(Screen.Settings.route) { //переход на тот же экран, чтобы обновить текст кнопок
+                ButtonTextSize { Settings.persist(context, scope) }
+                ButtonForSettings(stringResource(R.string.switch_language)) {
+                    Settings.language.value =
+                        if (Settings.language.value.language == "en") Locale("ru") else Locale("en")
+                    Settings.persist(context, scope)
+                    applyAppLocale(context, Settings.language.value)
+                    navController.navigate(Screen.Settings.route) {
                         popUpTo(Screen.Settings.route) { inclusive = true }
-                        launchSingleTop =
-                            true   //чтобы навигация не создавала новый экран, если он уже открыт.
+                        launchSingleTop = true
                     }
                 }
-                MyButton("Sign out") {
-                    db.signOut(navController)
-                    viewModel.clearDatabase()
+            }
+            Spacer(modifier = Modifier.height(24.dp)) // Отступ перед опасными действиями
+            Column(
+                modifier = Modifier.clip(RoundedCornerShape(12.dp)),
+                verticalArrangement = Arrangement.spacedBy(1.dp)
+            ) {
+                ButtonForSettings(stringResource(R.string.btn_sign_out)) {
+                    scope.launch {
+                        setUserOnline(false)
+                        viewModel.clearDatabase()
+                        val result = db.signOut()
+                        if (result.isSuccess) {
+                            navController.navigate(Screen.LogIn.route) {
+                                popUpTo(0) { inclusive = true }
+                            }
+                        }
+                    }
                 }
-                MyButton("Delete account") {
-                    db.deleteAccount(navController, name.value, password.value)
-                    viewModel.clearDatabase()
-                }
-                Column {
-                    TextField(
-                        value = name.value,
-                        onValueChange = { name.value = it },
-                        placeholder = { Text("name") },
-                    )
-                    TextField(
-                        value = password.value,
-                        onValueChange = { password.value = it },
-                        placeholder = { Text("password") },
-                    )
+                ButtonForSettings(stringResource(R.string.btn_delete_acc)) {
+                    navController.navigate(Screen.DeleteAcc.route)
                 }
             }
         }
