@@ -13,3 +13,9 @@
 -Изменение масштаба текста во всем приложении.
 
 ![photo_5229067334096459460_y](https://github.com/user-attachments/assets/089b5a23-0194-4490-8e58-f5f5db5c0eaa)
+![photo_5229067334096459461_y](https://github.com/user-attachments/assets/54ce2072-f019-48d0-8936-9bd839c7165d)
+![photo_5229067334096459462_y](https://github.com/user-attachments/assets/2b321092-5ae9-4ec6-a5d6-70f8210f2b06)
+![photo_5229067334096459463_y](https://github.com/user-attachments/assets/500aed5d-4eff-4260-be65-0aeb1d2e04f4)
+![photo_5229067334096459464_y](https://github.com/user-attachments/assets/174fa802-db09-43ef-9fdf-73ac521fb3b4)
+![photo_5229067334096459465_y](https://github.com/user-attachments/assets/cae4127c-8058-4166-a22d-72ea8f428da8)
+![photo_5229067334096459466_y](https://github.com/user-attachments/assets/e38db17e-df9c-433a-bffe-4d561fbd093b)
