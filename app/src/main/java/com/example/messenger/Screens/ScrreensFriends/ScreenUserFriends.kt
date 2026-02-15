@@ -2,7 +2,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.PersonAdd
@@ -11,15 +10,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.messenger.AvatarImage
 import com.example.messenger.MainViewModel
-import com.example.messenger.MyButton
 import com.example.messenger.MyIconButton
-import com.example.messenger.R
 import com.example.messenger.Screen
 import com.example.messenger.SearchBar
 import com.example.messenger.User

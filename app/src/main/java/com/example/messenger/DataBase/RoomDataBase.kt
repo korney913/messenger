@@ -38,7 +38,7 @@ class RoomDataBase {
 
         companion object {
             fun getDb(context: Context): MainDb {
-                //context.deleteDatabase("test.db") // удаляем старую версию
+                //context.deleteDatabase("test.db")
                 return Room.databaseBuilder(
                     context,
                     MainDb::class.java,

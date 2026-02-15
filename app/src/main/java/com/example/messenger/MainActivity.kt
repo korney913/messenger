@@ -1,6 +1,7 @@
 package com.example.messenger
 
 import android.content.Context
+import android.content.res.Configuration
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
@@ -34,7 +35,6 @@ import com.example.messenger.Screens.ScrreensFriends.ScreenFriends
 import com.example.messenger.Screens.SignIn
 import com.example.messenger.Screens.ScreensMessenger.ScreenMessenger
 import com.example.messenger.Screens.ScreenProfile
-import com.example.messenger.Screens.Settings
 import com.example.messenger.Screens.ScreenSettings
 import com.example.messenger.Screens.SignUp
 import com.example.messenger.ui.theme.MessengerTheme
@@ -46,28 +46,23 @@ import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.lifecycleScope
 import androidx.navigation.compose.navigation
 import com.example.messenger.Screens.DeleteAcc
 import com.example.messenger.Screens.ScreensMessenger.ScreenAddChat
 import com.example.messenger.Screens.ScreensMessenger.ScreenAddGroup
-import com.example.messenger.Screens.SettingsDataStore
-import kotlinx.coroutines.launch
 import java.util.Locale
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        lifecycleScope.launch {
-            SettingsDataStore(this@MainActivity).loadSettings()
-            applyAppLocale(this@MainActivity, Settings.language.value)
-        }
 
         ProcessLifecycleOwner.get().lifecycle.addObserver(
             LifecycleEventObserver { _, event ->
@@ -80,8 +75,20 @@ class MainActivity : ComponentActivity() {
         )
         enableEdgeToEdge()
         setContent {
-            MessengerTheme(darkTheme= Settings.darkTheme.value, multiplier = Settings.textSizeScale.value) {
-                Navigation()
+            val mainViewModel: MainViewModel = viewModel(factory = MainViewModel.factory)
+            LaunchedEffect(mainViewModel.currentLocale) {
+                applyAppLocale(this@MainActivity, mainViewModel.currentLocale)
+            }
+            val configuration = Configuration(LocalConfiguration.current).apply {
+                setLocale(mainViewModel.currentLocale)
+            }
+            CompositionLocalProvider(LocalConfiguration provides configuration) {
+                MessengerTheme(
+                    darkTheme = mainViewModel.isDarkTheme,
+                    multiplier = mainViewModel.textSizeScale
+                ) {
+                    Navigation(mainViewModel)
+                }
             }
         }
     }
@@ -93,9 +100,12 @@ class MainActivity : ComponentActivity() {
 
 fun applyAppLocale(context: Context, locale: Locale) {
     Locale.setDefault(locale)
-    val config = context.resources.configuration
+    val resources = context.resources
+    val config = resources.configuration
     config.setLocale(locale)
-    context.resources.updateConfiguration(config, context.resources.displayMetrics)
+    config.setLayoutDirection(locale)
+    resources.updateConfiguration(config, resources.displayMetrics)
+    context.applicationContext.resources.updateConfiguration(config, resources.displayMetrics)
 }
 
 sealed class Screen(val route: String) {
@@ -116,7 +126,7 @@ sealed class Screen(val route: String) {
 fun BotButton(navController: NavController) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
-    val navigationBars = WindowInsets.navigationBars.asPaddingValues() // отступы под кнопки/жесты
+    val navigationBars = WindowInsets.navigationBars.asPaddingValues()
     val bottomPadding: Dp = with(LocalDensity.current) { navigationBars.calculateBottomPadding() }
     NavigationBar(containerColor = MaterialTheme.colorScheme.primary,
         modifier = Modifier.height(50.dp + bottomPadding)) {
@@ -171,8 +181,7 @@ fun BotButton(navController: NavController) {
 
 
 @Composable
-fun Navigation() {
-    val mainViewModel: MainViewModel = viewModel(factory = MainViewModel.factory)
+fun Navigation(mainViewModel: MainViewModel) {
     val navController = rememberNavController()
     val user = FirebaseAuth.getInstance().currentUser
     val userIsLoggedIn = user?.uid != null

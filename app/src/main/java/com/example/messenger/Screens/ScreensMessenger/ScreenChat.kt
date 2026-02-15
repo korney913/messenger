@@ -67,6 +67,7 @@ import com.example.messenger.R
 import com.example.messenger.RemoveButton
 import com.example.messenger.ZoomableImage
 import com.example.messenger.dateConvertor
+import com.example.messenger.formatLastSeen
 import kotlinx.coroutines.launch
 import java.io.File
 
@@ -85,10 +86,11 @@ fun ScreenChat(navController: NavController, chatViewModel: ChatViewModel, chatI
     val boxHeight = remember { mutableStateOf(0.dp) }
     val density = context.resources.displayMetrics.density
     var isGroup = false
+    var isOnline = false
+    var lastSeen = ""
     LaunchedEffect(Unit){
         AppState.currentChatId = chatId
     }
-    // Этот эффект вызовется при уходе с экрана
     DisposableEffect(Unit) {
         onDispose {
             AppState.currentChatId = null
@@ -133,17 +135,17 @@ fun ScreenChat(navController: NavController, chatViewModel: ChatViewModel, chatI
             var chatAvatar = ""
             isGroup = !chat.chatName.isNullOrBlank()
             if (isGroup) {
-                // Это ГРУППА
                 chatTitle = chat.chatName!!
                 chatAvatar = chat.chatPhoto ?: ""
             } else {
-                // Это ЛИЧНЫЙ ЧАТ. Ищем собеседника (не меня)
                 val myId = chatViewModel.loggedInUser?.uid
                 otherId = chat.participants.firstOrNull { it != myId }
                 if (otherId != null) {
                     val user = chatViewModel.users[otherId]
                     chatTitle = user?.name ?: "User"
                     chatAvatar = user?.localAvatarPath ?: ""
+                    isOnline = user?.isOnline ?: false
+                    lastSeen = user?.lastSeen ?: ""
                 } else {
                     chatTitle = "Saved Messages"
                 }
@@ -152,9 +154,22 @@ fun ScreenChat(navController: NavController, chatViewModel: ChatViewModel, chatI
                 ButtonBack({ navController.navigate(Screen.Messenger.route) }, true)
                 Spacer(Modifier.width(8.dp))
                 Row(modifier = Modifier.fillMaxWidth()) {
-                    AvatarImage( chatAvatar, Modifier.size(40.dp))
+                    AvatarImage(chatAvatar, Modifier.size(40.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text(chatTitle, maxLines = 1, style = MaterialTheme.typography.titleMedium,color = MaterialTheme.colorScheme.onSurface)
+                    Column {
+                        Text(
+                            chatTitle,
+                            maxLines = 1,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = formatLastSeen(isOnline, lastSeen),
+                            maxLines = 1,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
                 }
             }
             Box(
@@ -185,7 +200,7 @@ fun ScreenChat(navController: NavController, chatViewModel: ChatViewModel, chatI
                                     Box(
                                         modifier = Modifier
                                             .background(
-                                                color = Color(0x55000000), // Полупрозрачный фон даты
+                                                color = Color(0x55000000),
                                                 shape = RoundedCornerShape(20.dp)
                                             )
                                             .padding(all = 5.dp)
@@ -248,7 +263,7 @@ fun ScreenChat(navController: NavController, chatViewModel: ChatViewModel, chatI
 @Composable
 fun MessageBox(message: Message, isOwner: Boolean, chatViewModel: ChatViewModel, boxWidth: Dp, boxHeight: Dp, isGroup: Boolean){
     val messageText = remember { mutableStateOf(
-        if (message.senderUid==chatViewModel.loggedInUser!!.uid) message.messageText+" \u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0"
+        if (message.senderUid==chatViewModel.loggedInUser?.uid) message.messageText+" \u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0"
         else message.messageText + " \u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0"
     ) }
     val context = LocalContext.current
@@ -271,7 +286,6 @@ fun MessageBox(message: Message, isOwner: Boolean, chatViewModel: ChatViewModel,
                         color = if (isOwner) Color(0xFF3390EC) else MaterialTheme.colorScheme.surface,
                         shape = RoundedCornerShape(16.dp)
                     )
-                    .padding(all = if(message.messageText=="") 0.dp else 8.dp)
             ) {
                 if (isGroup) Text(chatViewModel.users[message.senderUid]!!.name, color = Color(0xFF0088CC), style = MaterialTheme.typography.bodyLarge) // Синий цвет имени
                 if (message.photoName != "" && message.photoName != null) {
@@ -290,6 +304,7 @@ fun MessageBox(message: Message, isOwner: Boolean, chatViewModel: ChatViewModel,
                 }
                 if (message.messageText != "") Text(
                     messageText.value,
+                    modifier = Modifier.padding(8.dp),
                     color =  MaterialTheme.colorScheme.onSurface,
                     style = MaterialTheme.typography.bodyLarge
                 )

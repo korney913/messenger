@@ -11,10 +11,8 @@ import androidx.compose.material3.MaterialTheme.colorScheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.datastore.preferences.preferencesDataStore
@@ -37,60 +35,46 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
-import com.example.messenger.DataBase.FireBase
-import com.example.messenger.applyAppLocale
-import com.example.messenger.setUserOnline
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "user_settings")
 
-class SettingsDataStore(private val context: Context) {
+interface SettingsRepository {
+    val themeFlow: Flow<Boolean>
+    val languageFlow: Flow<String>
+    val textSizeFlow: Flow<Float>
+
+    suspend fun updateTheme(isDark: Boolean)
+    suspend fun updateLanguage(langTag: String)
+    suspend fun updateTextSize(size: Float)
+}
+
+class SettingsRepositoryImpl(private val context: Context) : SettingsRepository {
+    private val dataStore = context.dataStore
 
     private val DARK_THEME_KEY = booleanPreferencesKey("dark_theme")
     private val LANGUAGE_KEY = stringPreferencesKey("language")
     private val TEXT_SIZE_KEY = floatPreferencesKey("text_size")
 
-    suspend fun saveSettings(dark: Boolean, lang: String, size: Float) {
-        context.dataStore.edit { prefs ->
-            prefs[DARK_THEME_KEY] = dark
-            prefs[LANGUAGE_KEY] = lang
-            prefs[TEXT_SIZE_KEY] = size
-        }
+    override val themeFlow = dataStore.data.map { it[DARK_THEME_KEY] ?: false }
+    override val languageFlow = dataStore.data.map { it[LANGUAGE_KEY] ?: Locale.getDefault().toLanguageTag() }
+    override val textSizeFlow = dataStore.data.map { it[TEXT_SIZE_KEY] ?: 1.0f }
+
+    override suspend fun updateTheme(isDark: Boolean) {
+        dataStore.edit { it[DARK_THEME_KEY] = isDark }
     }
-
-    suspend fun loadSettings() {
-        val prefs = context.dataStore.data.first()
-
-        Settings.darkTheme.value = prefs[DARK_THEME_KEY] ?: false
-        Settings.textSizeScale.value = prefs[TEXT_SIZE_KEY] ?: 1.0f
-
-        val langTag = prefs[LANGUAGE_KEY] ?: Locale.getDefault().toLanguageTag()
-        Settings.language.value = Locale.forLanguageTag(langTag)
+    override suspend fun updateLanguage(langTag: String) {
+        dataStore.edit { it[LANGUAGE_KEY] = langTag }
     }
-}
-
-data object Settings {
-    val darkTheme = mutableStateOf(false)
-    val language = mutableStateOf(Locale.getDefault())
-    val textSizeScale = mutableStateOf(1f)
-
-    fun persist(context: android.content.Context, scope: kotlinx.coroutines.CoroutineScope) {
-        val dataStore = SettingsDataStore(context)
-        scope.launch {
-            dataStore.saveSettings(
-                darkTheme.value,
-                language.value.toLanguageTag(),
-                textSizeScale.value
-            )
-        }
+    override suspend fun updateTextSize(size: Float) {
+        dataStore.edit { it[TEXT_SIZE_KEY] = size }
     }
 }
 
 @Composable
 fun ScreenSettings(navController: NavController, viewModel: MainViewModel) {
-    val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val db = FireBase()
     Scaffold(
         bottomBar = {
             BotButton(navController = navController)
@@ -114,31 +98,21 @@ fun ScreenSettings(navController: NavController, viewModel: MainViewModel) {
                 verticalArrangement = Arrangement.spacedBy(1.dp)
             ) {
                 ButtonForSettings(stringResource(R.string.dark_theme)) {
-                    Settings.darkTheme.value = !Settings.darkTheme.value
-                    Settings.persist(context, scope)
+                    viewModel.updateTheme()
                 }
-                ButtonTextSize { Settings.persist(context, scope) }
+                ButtonTextSize(viewModel)
                 ButtonForSettings(stringResource(R.string.switch_language)) {
-                    Settings.language.value =
-                        if (Settings.language.value.language == "en") Locale("ru") else Locale("en")
-                    Settings.persist(context, scope)
-                    applyAppLocale(context, Settings.language.value)
-                    navController.navigate(Screen.Settings.route) {
-                        popUpTo(Screen.Settings.route) { inclusive = true }
-                        launchSingleTop = true
-                    }
+                    viewModel.updateLanguage(if (viewModel.currentLocale.language == "en") Locale("ru") else Locale("en") )
                 }
             }
-            Spacer(modifier = Modifier.height(24.dp)) // Отступ перед опасными действиями
+            Spacer(modifier = Modifier.height(24.dp))
             Column(
                 modifier = Modifier.clip(RoundedCornerShape(12.dp)),
                 verticalArrangement = Arrangement.spacedBy(1.dp)
             ) {
                 ButtonForSettings(stringResource(R.string.btn_sign_out)) {
                     scope.launch {
-                        setUserOnline(false)
-                        viewModel.clearDatabase()
-                        val result = db.signOut()
+                        val result = viewModel.signOut()
                         if (result.isSuccess) {
                             navController.navigate(Screen.LogIn.route) {
                                 popUpTo(0) { inclusive = true }

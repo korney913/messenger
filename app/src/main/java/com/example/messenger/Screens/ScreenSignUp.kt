@@ -1,5 +1,6 @@
 package com.example.messenger.Screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -39,9 +40,9 @@ fun SignUp(navController: NavController, viewModel: MainViewModel) {
     val scope = rememberCoroutineScope()
     val dateOfBirth = remember { mutableStateOf("") }
     val location = remember { mutableStateOf("") }
-    val db = FireBase()
-    Column(modifier = Modifier.padding(start = 30.dp, end = 30.dp)
-        .fillMaxSize(),
+    Column(modifier = Modifier.fillMaxSize()
+        .background(color = colorScheme.background)
+        .padding(start = 30.dp, end = 30.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp, Alignment.CenterVertically),
         horizontalAlignment = Alignment.CenterHorizontally) {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -61,18 +62,13 @@ fun SignUp(navController: NavController, viewModel: MainViewModel) {
         MyTextField(location.value,stringResource(R.string.hint_location)){ location.value = it }
         MyButton(stringResource(R.string.btn_signup2), modifier = Modifier.fillMaxWidth()) {
             scope.launch {
-                val result = db.signUp(email.value, password.value)
+                val result = viewModel.signUp(email.value, password.value,
+                    name.value, dateOfBirth.value, location.value)
                 if (result.isSuccess) {
-                    val uid = result.getOrNull()
-                    if (uid != null) {
-                        db.signUpInfo(uid, name.value, dateOfBirth.value, location.value)
-                        val newUser = User(uid, name.value, dateOfBirth.value, location.value, emptyList())
-                        viewModel.loggedInUser = newUser
                         navController.navigate("chatGraph") {
                             popUpTo(Screen.SignUp.route) { inclusive = true }
                         }
-                    }
-                }else {
+                    }else {
                     val error = result.exceptionOrNull()
                     errorMessage.value = when (error) {
                         is com.google.firebase.auth.FirebaseAuthUserCollisionException ->

@@ -38,11 +38,26 @@
     <string name="write">Write</string>
     <string name="add_friend">Add friend</string>
 
+    <!-- lastSeen -->
     <string name="email_already_in_use">This email is already in use</string>
     <string name="weak_password">Password is too weak (at least 6 characters)</string>
     <string name="wrong_password_or_email">Wrong email or password</string>
     <string name="invalid_email">Invalid email format</string>
     <string name="network_error">No connection to the server</string>
     <string name="delete_account_failed">Failed to delete account: </string>
+
+    <string name="last_seen_online">Online</string>
+    <string name="last_seen_just_now">last seen just now</string>
+    <string name="last_seen_today">last seen today at %s</string>
+    <string name="last_seen_yesterday">last seen yesterday at %s</string>
+
+    <plurals name="minutes_ago">
+        <item quantity="one">last seen %d minute ago</item>
+        <item quantity="other">last seen %d minutes ago</item>
+    </plurals>
+    <plurals name="hours_ago">
+        <item quantity="one">last seen %d hour ago</item>
+        <item quantity="other">last seen %d hours ago</item>
+    </plurals>
 
 </resources>

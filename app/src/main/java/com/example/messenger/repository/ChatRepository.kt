@@ -3,35 +3,46 @@ package com.example.messenger.repository
 import android.content.Context
 import android.util.Base64
 import com.example.messenger.Chat
-import com.example.messenger.DataBase.FireBase
+import com.example.messenger.DataBase.FireBaseService
 import com.example.messenger.DataBase.RoomDataBase
 import com.example.messenger.MessageStatus
 import com.example.messenger.User
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.firestore.FieldPath
 import com.google.firebase.firestore.ListenerRegistration
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.tasks.await
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import kotlin.collections.forEach
+
+
+interface IChatRepository {
+    fun listenForChats(loggedInUser: FirebaseUser, onUpdate: (List<RoomDataBase.ChatEntity>) -> Unit): ListenerRegistration
+
+    fun listenForUsersByList(uids: List<String>, onResult: (List<User>) -> Unit): ListenerRegistration
+
+    fun listenForAllMessages(
+        chats: List<Chat>,
+        context: Context,
+        onChatMessagesUpdate: (List<RoomDataBase.MessageEntity>) -> Unit
+    ): List<ListenerRegistration>
+
+    fun sortChatsByLastMessage(list: List<Chat>): List<Chat>
+}
 
 class ChatRepository(
     private val dao: RoomDataBase.MainDb,
-) {
-    fun listenForChats(loggedInUser: FirebaseUser, onUpdate: (List<RoomDataBase.ChatEntity>) -> Unit): ListenerRegistration {
-        return FireBase().store.collection("Chats")
+    private val firebaseService: FireBaseService
+) : IChatRepository {
+    override fun listenForChats(loggedInUser: FirebaseUser, onUpdate: (List<RoomDataBase.ChatEntity>) -> Unit): ListenerRegistration {
+        return firebaseService.store.collection("Chats")
             .whereArrayContains("participants", loggedInUser.uid)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
                     println("Firestore listener error: ${error.message}")
                     return@addSnapshotListener
                 }
-                var chats = snapshot?.documents?.mapNotNull { doc ->
+                val chats = snapshot?.documents?.mapNotNull { doc ->
                     RoomDataBase.ChatEntity(
                         chatId = doc.id,
                         participants = (doc.get("participants") as? List<*>)
@@ -45,8 +56,8 @@ class ChatRepository(
                 onUpdate(chats!!)
             }
     }
-    fun listenForUsersByList(uids: List<String>, onResult: (List<User>) -> Unit): ListenerRegistration {
-        return FireBase().store.collection("Users")
+    override fun listenForUsersByList(uids: List<String>, onResult: (List<User>) -> Unit): ListenerRegistration {
+        return firebaseService.store.collection("Users")
             .whereIn(FieldPath.documentId(), uids)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
@@ -74,9 +85,9 @@ class ChatRepository(
             }
     }
 
-    fun listenForAllMessages(chats: List<Chat>, context: Context, onChatMessagesUpdate: (List<RoomDataBase.MessageEntity>) -> Unit): List<ListenerRegistration> {
+    override fun listenForAllMessages(chats: List<Chat>, context: Context, onChatMessagesUpdate: (List<RoomDataBase.MessageEntity>) -> Unit): List<ListenerRegistration> {
         return chats.map { chat ->
-             FireBase().store.collection("Chats")
+             firebaseService.store.collection("Chats")
                 .document(chat.chatId)
                 .collection("Messages")
                 .orderBy("dateOfSend")
@@ -108,7 +119,7 @@ class ChatRepository(
                 }
         }
     }
-    fun sortChatsByLastMessage(list: List<Chat>): List<Chat> {
+    override fun sortChatsByLastMessage(list: List<Chat>): List<Chat> {
         return list.sortedByDescending { chat: Chat ->
             dateAsLong(chat.listMessage.lastOrNull()?.dateOfSend ?: "")
         }

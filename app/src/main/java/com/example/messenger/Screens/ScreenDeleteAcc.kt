@@ -1,5 +1,6 @@
 package com.example.messenger.Screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -25,7 +26,6 @@ import com.example.messenger.MyTextField
 import com.example.messenger.R
 import com.example.messenger.Screen
 import com.example.messenger.ButtonBack
-import com.example.messenger.DataBase.FireBase
 import com.google.firebase.auth.FirebaseAuthInvalidUserException
 import kotlinx.coroutines.launch
 
@@ -36,9 +36,9 @@ fun DeleteAcc(navController: NavController, viewModel: MainViewModel) {
     val email = remember {mutableStateOf("")}
     val password = remember {mutableStateOf("")}
     val errorMessage = remember { mutableStateOf("") }
-    val db = FireBase()
-    Column(modifier = Modifier.padding(start = 30.dp, end = 30.dp)
-        .fillMaxSize(),
+    Column(modifier = Modifier.fillMaxSize()
+        .background(color = colorScheme.background)
+        .padding(start = 30.dp, end = 30.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp, Alignment.CenterVertically),
         horizontalAlignment = Alignment.CenterHorizontally) {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -55,11 +55,10 @@ fun DeleteAcc(navController: NavController, viewModel: MainViewModel) {
         MyTextField(password.value,stringResource(R.string.hint_password)){ password.value = it }
         MyButton(stringResource(R.string.btn_delete_acc), modifier = Modifier.fillMaxWidth()) {
             scope.launch {
-                val result = db.deleteAccount(email.value, password.value)
+                val result = viewModel.deleteAccount(email.value, password.value)
 
                 result.onSuccess {
                     navController.navigate(Screen.LogIn.route) { popUpTo(0) }
-                    viewModel.clearDatabase()
                 }.onFailure { error ->
                     errorMessage.value = if (error is FirebaseAuthInvalidUserException) {
                         context.getString(R.string.wrong_password_or_email)

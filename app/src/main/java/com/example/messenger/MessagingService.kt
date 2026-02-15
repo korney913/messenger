@@ -42,7 +42,6 @@ fun RequestNotificationPermission() {
             launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
 
-        // Получение и лог токена устройства
         FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
             if (task.isSuccessful) {
                 val token = task.result
@@ -68,7 +67,6 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         super.onNewToken(token)
         val userId = FirebaseAuth.getInstance().currentUser?.uid
         if (userId != null) {
-            // Используем GlobalScope или создаем отдельный Scope для сервиса
             CoroutineScope(Dispatchers.IO).launch {
                 FirebaseFirestore.getInstance().collection("Users").document(userId)
                     .update("tokens", FieldValue.arrayUnion(token))

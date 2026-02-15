@@ -31,7 +31,6 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.messenger.AppState
 import com.example.messenger.AvatarImage
-import com.example.messenger.Chat
 import com.example.messenger.ChatViewModel
 import com.example.messenger.MessageStatus
 import com.example.messenger.Screen
@@ -47,7 +46,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import com.example.messenger.MyIconButton
 import com.example.messenger.R
-import com.example.messenger.timeAfterMassage
+import com.example.messenger.timeAfterMessage
 import com.example.messenger.unreadMessages
 import kotlinx.coroutines.launch
 
@@ -151,14 +150,14 @@ fun ScreenMessenger(navController: NavController, chatViewModel: ChatViewModel) 
                                         Box(
                                             modifier = Modifier
                                                 .size(14.dp)
-                                                .background(MaterialTheme.colorScheme.background, shape = CircleShape) // Обводка индикатора
+                                                .background(MaterialTheme.colorScheme.background, shape = CircleShape)
                                                 .padding(2.dp)
                                                 .align(Alignment.BottomEnd)
                                         ) {
                                             Box(
                                                 modifier = Modifier
                                                     .fillMaxSize()
-                                                    .background(Color(0xFF4CAF50), shape = CircleShape) // Насыщенный зеленый
+                                                    .background(Color(0xFF4CAF50), shape = CircleShape)
                                             )
                                         }
                                     }
@@ -176,7 +175,7 @@ fun ScreenMessenger(navController: NavController, chatViewModel: ChatViewModel) 
                                         if (chat.listMessage.isNotEmpty()) {
                                             val lastMsg = chat.listMessage.last()
                                             Text(
-                                                timeAfterMassage(lastMsg.dateOfSend),
+                                                timeAfterMessage(lastMsg.dateOfSend),
                                                 color = MaterialTheme.colorScheme.secondary,
                                                 style = MaterialTheme.typography.bodySmall
                                             )

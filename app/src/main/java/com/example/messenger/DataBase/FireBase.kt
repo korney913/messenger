@@ -1,28 +1,34 @@
 package com.example.messenger.DataBase
 
 import android.util.Log
-import androidx.navigation.NavController
-import com.example.messenger.Screen
-import com.example.messenger.User
 import com.google.firebase.auth.EmailAuthProvider
-import com.google.firebase.auth.ktx.auth
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
+import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
-import com.google.firebase.firestore.ktx.firestore
-import com.google.firebase.ktx.Firebase
 import com.google.firebase.messaging.FirebaseMessaging
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.tasks.await
-import kotlinx.coroutines.withContext
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
-class FireBase {
-    val store = Firebase.firestore
-    private val auth = Firebase.auth
+interface FireBaseService {
+    val store: FirebaseFirestore
+    suspend fun signIn(email: String, password: String): Result<String>
+    suspend fun signUp(email: String, password: String): Result<String>
+    suspend fun signUpInfo(uid: String, name: String, dateOfBirth: String, location: String)
+    suspend fun signOut(): Result<Unit>
+    suspend fun deleteAccount(email: String, password: String): Result<Unit>
+    suspend fun addChat(list: List<String>, chatName: String?, chatPhoto: String?, adminId: String?): String
+    suspend fun addDeviceToken(uid: String)
+    suspend fun removeDeviceToken(uid: String)
+    suspend fun getDeviceToken(): String?
+}
 
-    suspend fun signUp(email: String, password: String): Result<String> {
+class FireBase(
+    private val auth: FirebaseAuth,
+    override val store: FirebaseFirestore,
+    private val messaging: FirebaseMessaging
+) : FireBaseService {
+
+    override suspend fun signUp(email: String, password: String): Result<String> {
         return try {
             val result = auth.createUserWithEmailAndPassword(email, password).await()
             val uid = result.user?.uid ?: throw Exception("Не удалось получить UID")
@@ -33,7 +39,7 @@ class FireBase {
         }
     }
 
-    suspend fun signIn(email: String, password: String): Result<String> {
+    override suspend fun signIn(email: String, password: String): Result<String> {
         return try {
             val result = auth.signInWithEmailAndPassword(email, password).await()
             val uid = result.user?.uid ?: throw Exception("UID не найден")
@@ -44,7 +50,7 @@ class FireBase {
             Result.failure(e)
         }
     }
-    suspend fun signUpInfo(uid: String, name: String,dateOfBirth: String, location: String) {
+    override suspend fun signUpInfo(uid: String, name: String,dateOfBirth: String, location: String) {
         val token = getDeviceToken()
         val data = mutableMapOf(
             "name" to name,
@@ -63,14 +69,12 @@ class FireBase {
         }
     }
 
-    suspend fun signOut(): Result<Unit> {
+    override suspend fun signOut(): Result<Unit> {
         return try {
             val currentUser = auth.currentUser
             if (currentUser != null) {
                 removeDeviceToken(currentUser.uid)
             }
-            Firebase.firestore.terminate().await()
-            Firebase.firestore.clearPersistence().await()
             auth.signOut()
             Result.success(Unit)
         } catch (e: Exception) {
@@ -78,7 +82,7 @@ class FireBase {
             Result.failure(e)
         }
     }
-    suspend fun deleteAccount(email: String, password: String): Result<Unit> {
+    override suspend fun deleteAccount(email: String, password: String): Result<Unit> {
         val user = auth.currentUser ?: return Result.failure(Exception("Пользователь не авторизован"))
         val credential = EmailAuthProvider.getCredential(email, password)
         return try {
@@ -95,7 +99,7 @@ class FireBase {
             Result.failure(e)
         }
     }
-    suspend fun addChat(list:List<String>, chatName: String?, chatPhoto: String?, adminId: String?): String{
+    override suspend fun addChat(list:List<String>, chatName: String?, chatPhoto: String?, adminId: String?): String{
         val deterministicChatId = list.sorted().joinToString("_")
         val docRef = if (list.size==2) store.collection("Chats").document(deterministicChatId)
         else store.collection("Chats").document()
@@ -129,15 +133,15 @@ class FireBase {
         }
     }
 
-    suspend fun getDeviceToken(): String? {
+    override suspend fun getDeviceToken(): String? {
         return try {
-            FirebaseMessaging.getInstance().token.await()
+            messaging.token.await()
         } catch (e: Exception) {
             null
         }
     }
 
-    suspend fun addDeviceToken(uid: String) {
+    override suspend fun addDeviceToken(uid: String) {
         val token = getDeviceToken() ?: return
         try {
             store.collection("Users").document(uid).set(
@@ -149,7 +153,7 @@ class FireBase {
         }
     }
 
-    suspend fun removeDeviceToken(uid: String) {
+    override suspend fun removeDeviceToken(uid: String) {
         val token = getDeviceToken() ?: return
         try {
             store.collection("Users").document(uid).update(

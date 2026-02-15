@@ -16,7 +16,9 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory.Companion.APPLICATION_KEY
 import androidx.lifecycle.viewmodel.CreationExtras
+import com.example.messenger.DataBase.FireBaseService
 import com.example.messenger.repository.ChatRepository
+import com.example.messenger.repository.IChatRepository
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.tasks.await
@@ -24,17 +26,17 @@ import java.io.File
 import java.lang.System
 import java.util.UUID
 import kotlin.String
-import com.google.firebase.Timestamp
+import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
+import com.google.firebase.messaging.FirebaseMessaging
 import kotlinx.coroutines.Dispatchers
-import java.text.SimpleDateFormat
-import java.util.*
 
 class ChatViewModel(
     application: Application,
-    val localBase: RoomDataBase.MainDb,
-    val chatRepository: ChatRepository
-) : AndroidViewModel(application)  {
+    private val localBase: RoomDataBase.MainDb,
+    private val chatRepository: IChatRepository,
+    private val firebaseService: FireBaseService
+) : AndroidViewModel(application) {
     private val activeListeners = mutableListOf<ListenerRegistration>()
     private val messageListeners = mutableListOf<ListenerRegistration>()
     val loggedInUser = FirebaseAuth.getInstance().currentUser
@@ -122,7 +124,7 @@ class ChatViewModel(
         } catch (e: Exception) {
         }
         if (newAvatarUpdatedAt != avatarUpdatedAt) {
-            val photo = FireBase().store
+            val photo = firebaseService.store
                 .collection("Photo")
                 .document("avatars")
                 .collection("Users")
@@ -171,7 +173,7 @@ class ChatViewModel(
         )
         localBase.getDao().insertMessage(message)
         try {
-            FireBase().store.collection("Chats")
+            firebaseService.store.collection("Chats")
                 .document(chatId)
                 .collection("Messages")
                 .document(messageId)
@@ -190,7 +192,7 @@ class ChatViewModel(
     }
 
     suspend fun readMessage(message: Message) {
-        FireBase().store.collection("Chats")
+        firebaseService.store.collection("Chats")
             .document(openedChat!!.chatId)
             .collection("Messages")
             .document(message.messageId)
@@ -214,8 +216,15 @@ class ChatViewModel(
                 extras: CreationExtras): T {
                 val application = checkNotNull(extras[APPLICATION_KEY]) as Application
                 val database = (checkNotNull(extras[APPLICATION_KEY]) as App).database
-                val chatRepository = ChatRepository(database)
-                return ChatViewModel(application, database, chatRepository) as T            }
+                val firebaseService = FireBase(
+                    auth = FirebaseAuth.getInstance(),
+                    store = FirebaseFirestore.getInstance(),
+                    messaging = FirebaseMessaging.getInstance()
+                )
+
+                val chatRepository = ChatRepository(database, firebaseService)
+
+                return ChatViewModel(application, database, chatRepository, firebaseService) as T            }
         }
     }
 }

@@ -2,7 +2,6 @@ package com.example.messenger
 
 
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Schedule
@@ -10,13 +9,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
 import com.example.messenger.DataBase.RoomDataBase
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import java.util.concurrent.TimeUnit
 
 enum class MessageStatus {
     PENDING,
@@ -114,53 +110,4 @@ data class Chat (
         chatPhoto = chat.chatPhoto,
         adminId = chat.adminId
     )
-}
-
-fun dateConvertor(dateOfSend: String): String{
-   return try {
-        val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-        val outputFormat = SimpleDateFormat("d MMMM", Locale.getDefault())
-        val date = inputFormat.parse(dateOfSend)
-        if (date != null) {
-            outputFormat.format(date)
-        } else {
-            dateOfSend.substringBefore(" ")
-        }
-    } catch (e: Exception) {
-        dateOfSend.substringBefore(" ")
-    }
-}
-
-@Composable
-fun timeAfterMassage(dateOfSend: String): String{
-    val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-    val messageDate = inputFormat.parse(dateOfSend) ?: return ""
-    val now = Date()
-    val diffInMillis = now.time - messageDate.time
-    if (diffInMillis <= 0) return "now"
-    val seconds = TimeUnit.MILLISECONDS.toSeconds(diffInMillis)
-    val minutes = TimeUnit.MILLISECONDS.toMinutes(diffInMillis)
-    val hours = TimeUnit.MILLISECONDS.toHours(diffInMillis)
-    val days = TimeUnit.MILLISECONDS.toDays(diffInMillis)
-    return when {
-        days > 30 -> {
-            val outputFormat = SimpleDateFormat("d MMM", Locale.ENGLISH)
-            outputFormat.format(messageDate)
-        }
-        days > 0 -> "${days}${stringResource(R.string.days)}"
-        hours > 0 -> "${hours}${stringResource(R.string.hours)}"
-        minutes > 0 -> "${minutes}${stringResource(R.string.minutes)}"
-        else -> "1${stringResource(R.string.minutes)}"
-    }
-}
-
-fun unreadMessages(chat: Chat):Int{
-    var n = 1
-    val N = chat.listMessage.size
-    try {
-        while (chat.listMessage[N-n-1].status!= MessageStatus.READ)
-            n++
-    }
-    catch (e: Exception){}
-    return n
 }

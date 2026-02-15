@@ -34,7 +34,6 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
-import com.example.messenger.Screens.Settings
 
 @Composable
 fun MyButton(text: String, modifier: Modifier = Modifier, enabled: Boolean = true, onClick: () -> Unit) {
@@ -59,8 +58,8 @@ fun ButtonForSettings(text: String, modifier: Modifier = Modifier, enabled: Bool
         enabled = enabled,
         onClick = onClick,
         colors = ButtonDefaults.buttonColors(
-            containerColor = colorScheme.surface,      // Цвет панелей (светло-серый/графит)
-            contentColor = colorScheme.onSurface       // Основной текст
+            containerColor = colorScheme.surface,
+            contentColor = colorScheme.onSurface
         ),
         modifier = modifier.fillMaxWidth().height(48.dp),
         shape = RoundedCornerShape(0.dp),
@@ -71,26 +70,25 @@ fun ButtonForSettings(text: String, modifier: Modifier = Modifier, enabled: Bool
 }
 
 @Composable
-fun ButtonTextSize(onClick: () -> Unit) {
+fun ButtonTextSize(viewModel: MainViewModel) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .height(48.dp)
-            .background(colorScheme.surface), // Фон в тон настроек
+            .background(colorScheme.surface),
         verticalAlignment = Alignment.CenterVertically
     ) {
         IconButton(
             onClick = {
-                onClick()
-                Settings.textSizeScale.value = Settings.textSizeScale.value - 0.1f
+                viewModel.updateTextSize(viewModel.textSizeScale - 0.1f)
             },
-            enabled = Settings.textSizeScale.value > 0.7,
+            enabled = viewModel.textSizeScale > 0.7,
             modifier = Modifier.weight(1f)
         ) {
             Icon(
                 imageVector = Icons.Default.Remove,
                 contentDescription = "-",
-                tint = colorScheme.primary, // Кнопки управления - синие
+                tint = colorScheme.primary,
             )
         }
         Text(
@@ -100,16 +98,15 @@ fun ButtonTextSize(onClick: () -> Unit) {
         )
         IconButton(
             onClick = {
-                onClick()
-                Settings.textSizeScale.value = Settings.textSizeScale.value + 0.1f
+                viewModel.updateTextSize(viewModel.textSizeScale + 0.1f)
             },
-            enabled = Settings.textSizeScale.value < 1.5,
+            enabled = viewModel.textSizeScale < 1.5,
             modifier = Modifier.weight(1f)
         ) {
             Icon(
                 imageVector = Icons.Default.Add,
                 contentDescription = "+",
-                tint = colorScheme.primary, // Кнопки управления - синие
+                tint = colorScheme.primary,
             )
         }
     }
@@ -146,7 +143,7 @@ fun RemoveButton(onClick: () -> Unit) {
                 tint = Color.White,
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.4f), CircleShape) // Затемнение под крестиком
+                    .background(Color.Black.copy(alpha = 0.4f), CircleShape)
             )
         }
     }
@@ -226,7 +223,7 @@ fun SearchBar(query: String, onQueryChange: (String) -> Unit) {
             Icon(
                 imageVector = Icons.Default.Search,
                 contentDescription = "Поиск",
-                tint = colorScheme.secondary // Серые иконки поиска
+                tint = colorScheme.secondary
             )
         },
         trailingIcon = {

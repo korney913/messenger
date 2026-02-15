@@ -114,7 +114,7 @@ fun ScreenAddChat(navController: NavController, viewModel: MainViewModel) {
                                 Text(
                                     user.city,
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.secondary // Серый цвет города
+                                    color = MaterialTheme.colorScheme.secondary
                                 )
                             }
                             MyIconButton(Icons.Default.Chat) {

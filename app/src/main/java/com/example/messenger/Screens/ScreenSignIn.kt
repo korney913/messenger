@@ -1,5 +1,6 @@
 package com.example.messenger.Screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -19,15 +20,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import com.example.messenger.DataBase.FireBase
 import com.example.messenger.MainViewModel
 import com.example.messenger.MyButton
 import com.example.messenger.MyTextField
 import com.example.messenger.R
 import com.example.messenger.Screen
 import com.example.messenger.setUserOnline
-import com.example.messenger.ui.theme.BlackPurple
-import com.google.firebase.FirebaseNetworkException
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
 import kotlinx.coroutines.launch
 
@@ -35,12 +33,12 @@ import kotlinx.coroutines.launch
 fun SignIn(navController: NavController, viewModel: MainViewModel) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val email = remember {mutableStateOf("wwww@gmail.com")}
+    val email = remember {mutableStateOf("qqqq@gmail.com")}
     val password = remember {mutableStateOf("12345678")}
     val errorMessage = remember { mutableStateOf("") }
-    val db = FireBase()
-    Column(modifier = Modifier.padding(start = 30.dp, end = 30.dp)
-        .fillMaxSize(),
+    Column(modifier = Modifier.fillMaxSize()
+        .background(color = colorScheme.background)
+        .padding(start = 30.dp, end = 30.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp, Alignment.CenterVertically),
         horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
@@ -52,8 +50,9 @@ fun SignIn(navController: NavController, viewModel: MainViewModel) {
         MyTextField(password.value,stringResource(R.string.hint_password)){ password.value = it }
         MyButton(stringResource(R.string.btn_sign_in), modifier = Modifier.fillMaxWidth()) {
             scope.launch {
-                val result = db.signIn(email.value, password.value)
-                if (result.isSuccess) {                    setUserOnline(true)
+                val result = viewModel.signIn(email.value, password.value)
+                if (result.isSuccess) {
+                    setUserOnline(true)
                     navController.navigate("chatGraph") {
                         popUpTo(Screen.LogIn.route) { inclusive = true }
                     }
@@ -69,7 +68,7 @@ fun SignIn(navController: NavController, viewModel: MainViewModel) {
         Text(errorMessage.value, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
         Text(
                 text = stringResource(R.string.btn_signup),
-        color = BlackPurple,
+        color = colorScheme.primary,
         modifier = Modifier
             .clickable {
                 navController.navigate(Screen.SignUp.route)

@@ -12,49 +12,94 @@ import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory.Companion.AP
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
 import com.example.messenger.DataBase.FireBase
+import com.example.messenger.DataBase.FireBaseService
 import com.example.messenger.DataBase.RoomDataBase
-import com.example.messenger.Screens.Settings
+import com.example.messenger.Screens.SettingsRepository
+import com.example.messenger.Screens.SettingsRepositoryImpl
 import com.example.messenger.repository.ChatRepository
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldPath
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.SetOptions
+import com.google.firebase.messaging.FirebaseMessaging
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import java.io.File
-import java.lang.Exception
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-class MainViewModel( val localBase: RoomDataBase.MainDb,
-                     val chatRepository: ChatRepository
+class MainViewModel( private val localBase: RoomDataBase.MainDb,
+                     private val chatRepository: ChatRepository,
+                     private val fireBase: FireBaseService,
+                     private val settingsRepository: SettingsRepository
 ) : ViewModel() {
-    val fireBase = FireBase()
     var loggedInUser by mutableStateOf<User>(User())
+    private var userListener: ListenerRegistration? = null
+
+    var isDarkTheme by mutableStateOf(false)
+    var textSizeScale by mutableStateOf(1f)
+    var currentLocale by mutableStateOf(Locale.getDefault())
+
     init {
         viewModelScope.launch {
-            val user = FirebaseAuth.getInstance().currentUser
-            if (user != null) {
-                chatRepository.listenForUsersByList(listOf(user.uid)){
-                    viewModelScope.launch {
-                        it.forEach { user ->
-                            localBase.getDao().insertUser(RoomDataBase.UserEntity(user))
-                        }
-                        localBase.getDao().flowUser(user.uid)
-                            .collect { mappedUsers ->
-                                loggedInUser = User(mappedUsers!!)
-                            }
-                    }
+            settingsRepository.themeFlow.collect { isDarkTheme = it }
+        }
+        viewModelScope.launch {
+            settingsRepository.textSizeFlow.collect { textSizeScale = it }
+        }
+        viewModelScope.launch {
+            settingsRepository.languageFlow.collect {currentLocale = Locale.forLanguageTag(it)}
+        }
+        val uid = FirebaseAuth.getInstance().currentUser?.uid
+        if (uid != null) {
+            observeLocalUser(uid)
+            syncUserWithFirestore(uid)
+        }
+    }
+
+    fun updateTheme() {
+        viewModelScope.launch {
+            settingsRepository.updateTheme(!isDarkTheme)
+        }
+    }
+
+    fun updateTextSize(newSize: Float) {
+        viewModelScope.launch {
+            settingsRepository.updateTextSize(newSize)
+        }
+    }
+
+    fun updateLanguage(newLocale: Locale) {
+        viewModelScope.launch {
+            settingsRepository.updateLanguage(newLocale.toLanguageTag())
+        }
+    }
+
+    private fun observeLocalUser(uid: String) {
+        viewModelScope.launch {
+            localBase.getDao().flowUser(uid).collect { entity ->
+                entity?.let {
+                    loggedInUser = User(it)
+                }
             }
         }
     }
+
+    private fun syncUserWithFirestore(uid: String) {
+        userListener = chatRepository.listenForUsersByList(listOf(uid)) { userList ->
+            viewModelScope.launch(Dispatchers.IO) {
+                userList.forEach { remoteUser ->
+                    localBase.getDao().insertUser(RoomDataBase.UserEntity(remoteUser))
+                }
+            }
+        }
     }
 
     suspend fun addChat(listUid: List<String>, chatName: String? = null, chatPhoto: String? = null, adminId: String? = null): String {
@@ -80,7 +125,7 @@ class MainViewModel( val localBase: RoomDataBase.MainDb,
 
     suspend fun getTenUsers(uids: List<String> = emptyList(), startUid: String? = null):
             List<User> = coroutineScope {
-        val collection = FireBase().store.collection("Users")
+        val collection = fireBase.store.collection("Users")
         val query = if (uids.isEmpty()) {
             if (startUid != null) collection.orderBy(FieldPath.documentId()).limit(10)
                 .startAfter(startUid) else collection.orderBy(FieldPath.documentId()).limit(10)
@@ -95,7 +140,7 @@ class MainViewModel( val localBase: RoomDataBase.MainDb,
                     val uid = doc.id
                     val friends = data["friendsId"] as? List<String> ?: emptyList()
                     val base64Photo = try {
-                        FireBase().store
+                        fireBase.store
                             .collection("Photo")
                             .document("avatars")
                             .collection("Users")
@@ -188,15 +233,70 @@ class MainViewModel( val localBase: RoomDataBase.MainDb,
             }
     }
 
+    suspend fun deleteAccount(email: String, password: String): Result<Unit> {
+        val result = fireBase.deleteAccount(email, password)
+        if (result.isSuccess) {
+            clearDatabase()
+        }
+
+        return result
+    }
+
+    suspend fun signIn(email: String, password: String): Result<String> {
+        val result = fireBase.signIn(email, password)
+        if (result.isSuccess) {
+            setUserOnline(true)
+            val uid = FirebaseAuth.getInstance().currentUser?.uid
+            if (uid != null) {
+                observeLocalUser(uid)
+                syncUserWithFirestore(uid)
+            }
+        }
+        return result
+    }
+    suspend fun signUp(email: String, password: String,  name: String, dateOfBirth: String, location: String): Result<String> {
+        val result = fireBase.signUp(email, password)
+        if (result.isSuccess) {
+            val uid = result.getOrNull()
+            if (uid != null) {
+                fireBase.signUpInfo(uid, name, dateOfBirth, location)
+                observeLocalUser(uid)
+                syncUserWithFirestore(uid)
+            }
+        }
+        return result
+    }
+
+    suspend fun signOut(): Result<Unit> {
+        val result = fireBase.signOut()
+        if (result.isSuccess) {
+            setUserOnline(false)
+            clearDatabase()
+        }
+        return result
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        userListener?.remove()
+    }
+
     companion object{
         val factory: ViewModelProvider.Factory = object : ViewModelProvider.Factory{
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(
                 modelClass: Class<T>,
                 extras: CreationExtras): T {
-                val database = (checkNotNull(extras[APPLICATION_KEY]) as App).database
-                val chatRepository = ChatRepository(database)
-                return MainViewModel(database, chatRepository) as T
+                val application = checkNotNull(extras[APPLICATION_KEY]) as App
+                val database = application.database
+                val firebaseService = FireBase(
+                    auth = FirebaseAuth.getInstance(),
+                    store = FirebaseFirestore.getInstance(),
+                    messaging = FirebaseMessaging.getInstance()
+                )
+                val chatRepository = ChatRepository(database, firebaseService)
+                val settingsRepository = SettingsRepositoryImpl(application)
+                return MainViewModel(database, chatRepository, firebaseService, settingsRepository) as T
             }
         }
     }

@@ -34,6 +34,7 @@
     <string name="photo">Фото</string>
     <string name="search">Поиск...</string>
 
+
     <!-- ScreenFriends -->
     <string name="write">Написать</string>
     <string name="add_friend">Добавить в друзья</string>
@@ -45,5 +46,25 @@
     <string name="invalid_email">Некорректный формат email</string>
     <string name="network_error">Нет соединения с сервером</string>
     <string name="delete_account_failed">Не удалось удалить: </string>
+
+    <!-- lastSeen -->
+    <string name="last_seen_online">В сети</string>
+    <string name="last_seen_just_now">был(а) только что</string>
+    <string name="last_seen_today">был(а) сегодня в %s</string>
+    <string name="last_seen_yesterday">был(а) вчера в %s</string>
+
+    <plurals name="minutes_ago">
+        <item quantity="one">был(а) %d минуту назад</item>
+        <item quantity="few">был(а) %d минуты назад</item>
+        <item quantity="many">был(а) %d минут назад</item>
+        <item quantity="other">был(а) %d минуты назад</item>
+    </plurals>
+
+    <plurals name="hours_ago">
+        <item quantity="one">был(а) %d час назад</item>
+        <item quantity="few">был(а) %d часа назад</item>
+        <item quantity="many">был(а) %d часов назад</item>
+        <item quantity="other">был(а) %d часа назад</item>
+    </plurals>
 
 </resources>
