@@ -14,4 +14,4 @@
 
 | Список чатов | Окно чата | Настройки |
 | :---: | :---: | :---: |
-| <img src="screens/messenger.jpg" width="250"> | <img src="screens/chat.jpg" width="250"> | <img src="screens/settings.jpg" width="250"> |
+| <img src="Screens/messenger.jpg" width="250"> | <img src="Screens/chat.jpg" width="250"> | <img src="Screens/settings.jpg" width="250"> |
