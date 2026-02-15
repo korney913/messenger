@@ -12,6 +12,6 @@
 -Мгновенная локализация (RU/EN) без перезагрузки Activity.
 -Изменение масштаба текста во всем приложении.
 
-| Список чатов | Окно чата | Настройки |
-| :---: | :---: | :---: |
-| <img src="Screens/messenger.jpg" width="140"> | <img src="Screens/chat.jpg" width="140"> | <img src="Screens/settings.jpg" width="140"> |
+| Логин | Список чатов | Чат | Профиль | Друзья | Настройки | Темная Тема |
+| :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| <img src="Screens/sign_in.jpg" width="140"> | <img src="Screens/messenger.jpg" width="140"> | <img src="Screens/chat.jpg" width="140"> | <img src="Screens/profile.jpg" width="140"> | <img src="Screens/friends.jpg" width="140"> | <img src="Screens/settings.jpg" width="140"> | <img src="Screens/settings_dark_mod.jpg" width="140"> |
