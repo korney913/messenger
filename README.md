@@ -16,13 +16,13 @@
 <table style="width: 100%;">
   <tr>
     <!-- Задаем ширину заголовков (100% / 7 ≈ 14.2%) -->
-    <th width="14.2%">Логин</th>
-    <th width="14.2%">Чаты</th>
-    <th width="14.2%">Чат</th>
-    <th width="14.2%">Профиль</th>
-    <th width="14.2%">Друзья</th>
+    <th width="14.2%">  Логин  </th>
+    <th width="14.2%">  Чаты   </th>
+    <th width="14.2%">   Чат   </th>
+    <th width="14.2%"> Профиль </th>
+    <th width="14.2%"> Друзья  </th>
     <th width="14.2%">Настройки</th>
-    <th width="14.2%">Темная тема</th>
+    <th width="14.2%"> Темная тема </th>
   </tr>
   <tr>
     <td align="center"><img src="Screens/sign_in.jpg" width="100%"></td>
