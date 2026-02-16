@@ -41,6 +41,8 @@ import com.example.messenger.ButtonBack
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.InlineTextContent
+import androidx.compose.foundation.text.appendInlineContent
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.platform.LocalContext
@@ -60,7 +62,12 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.Placeholder
+import androidx.compose.ui.text.PlaceholderVerticalAlign
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.messenger.MyIconButton
 import com.example.messenger.MyTextField2
 import com.example.messenger.R
@@ -263,8 +270,7 @@ fun ScreenChat(navController: NavController, chatViewModel: ChatViewModel, chatI
 @Composable
 fun MessageBox(message: Message, isOwner: Boolean, chatViewModel: ChatViewModel, boxWidth: Dp, boxHeight: Dp, isGroup: Boolean){
     val messageText = remember { mutableStateOf(
-        if (message.senderUid==chatViewModel.loggedInUser?.uid) message.messageText+" \u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0"
-        else message.messageText + " \u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0"
+         message.messageText
     ) }
     val context = LocalContext.current
     val zoomImage = remember { mutableStateOf<String?>(null) }
@@ -302,8 +308,28 @@ fun MessageBox(message: Message, isOwner: Boolean, chatViewModel: ChatViewModel,
                         )
                     }
                 }
+                val inlineContentId = "status_space"
+                val annotatedString = buildAnnotatedString {
+                    append(messageText.value)
+                    appendInlineContent(inlineContentId, "[status]")
+                }
+
+                val inlineContent = mapOf(
+                    inlineContentId to InlineTextContent(
+                        // Задаем ширину и высоту места под статус
+                        Placeholder(
+                            width = (((if (message.senderUid==chatViewModel.loggedInUser?.uid) 5.6 else 3.3)
+                                    * MaterialTheme.typography.bodyMedium.fontSize.value)).sp,
+                            height = 0.sp,
+                            placeholderVerticalAlign = PlaceholderVerticalAlign.Center
+                        )
+                    ) {
+                        // пустое место под статус
+                    }
+                )
                 if (message.messageText != "") Text(
-                    messageText.value,
+                    annotatedString,
+                    inlineContent = inlineContent,
                     modifier = Modifier.padding(8.dp),
                     color =  MaterialTheme.colorScheme.onSurface,
                     style = MaterialTheme.typography.bodyLarge
