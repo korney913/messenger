@@ -269,9 +269,6 @@ fun ScreenChat(navController: NavController, chatViewModel: ChatViewModel, chatI
 
 @Composable
 fun MessageBox(message: Message, isOwner: Boolean, chatViewModel: ChatViewModel, boxWidth: Dp, boxHeight: Dp, isGroup: Boolean){
-    val messageText = remember { mutableStateOf(
-         message.messageText
-    ) }
     val context = LocalContext.current
     val zoomImage = remember { mutableStateOf<String?>(null) }
     LaunchedEffect(message.messageId) {
@@ -310,7 +307,7 @@ fun MessageBox(message: Message, isOwner: Boolean, chatViewModel: ChatViewModel,
                 }
                 val inlineContentId = "status_space"
                 val annotatedString = buildAnnotatedString {
-                    append(messageText.value)
+                    append(message.messageText)
                     appendInlineContent(inlineContentId, "[status]")
                 }
 
