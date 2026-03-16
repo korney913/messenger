@@ -57,7 +57,7 @@ fun ScreenMessenger(navController: NavController, chatViewModel: ChatViewModel) 
     val listOfChats = chatViewModel.chats
     val listOfUsers = chatViewModel.users
     val currentUserId = chatViewModel.loggedInUser?.uid ?: ""
-    val listState = rememberLazyListState(listOfChats.size)
+    val listState = rememberLazyListState(0)
     LaunchedEffect(Unit) {
         AppState.isInMessengerScreen = true
         chatViewModel.updatePhoto("")

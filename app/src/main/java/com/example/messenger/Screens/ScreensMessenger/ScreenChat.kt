@@ -246,7 +246,7 @@ fun ScreenChat(navController: NavController, chatViewModel: ChatViewModel, chatI
                     RemoveButton { photo.value = "" }
                 }
             }
-            Row(modifier = Modifier.background(MaterialTheme.colorScheme.surface)) { // Фон панели ввода
+            Row(modifier = Modifier.background(MaterialTheme.colorScheme.surface)) {
                 MyIconButton(Icons.Default.Add) {
                     launcher.launch(
                         PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
@@ -290,7 +290,9 @@ fun MessageBox(message: Message, isOwner: Boolean, chatViewModel: ChatViewModel,
                         shape = RoundedCornerShape(16.dp)
                     )
             ) {
-                if (isGroup) Text(chatViewModel.users[message.senderUid]!!.name, color = Color(0xFF0088CC), style = MaterialTheme.typography.bodyLarge) // Синий цвет имени
+                if (isGroup) Text(chatViewModel.users[message.senderUid]!!.name,
+                    Modifier.padding(top = 5.dp, start = 5.dp, end = 5.dp), color = MaterialTheme.colorScheme.onSurface,
+                    style = MaterialTheme.typography.bodyLarge)
                 if (message.photoName != "" && message.photoName != null) {
                     Box(modifier = Modifier.clickable(onClick = {
                         zoomImage.value = File(context.filesDir, message.photoName).absolutePath
@@ -313,7 +315,6 @@ fun MessageBox(message: Message, isOwner: Boolean, chatViewModel: ChatViewModel,
 
                 val inlineContent = mapOf(
                     inlineContentId to InlineTextContent(
-                        // Задаем ширину и высоту места под статус
                         Placeholder(
                             width = (((if (message.senderUid==chatViewModel.loggedInUser?.uid) 5.6 else 3.3)
                                     * MaterialTheme.typography.bodyMedium.fontSize.value)).sp,
@@ -321,7 +322,6 @@ fun MessageBox(message: Message, isOwner: Boolean, chatViewModel: ChatViewModel,
                             placeholderVerticalAlign = PlaceholderVerticalAlign.Center
                         )
                     ) {
-                        // пустое место под статус
                     }
                 )
                 if (message.messageText != "") Text(
